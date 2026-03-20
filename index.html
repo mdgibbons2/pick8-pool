@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick-8 Pool - 2026 NCAA Tournament Horserace</title>
+<style>
+:root {
+  --bg-dark: #0f1123;
+  --bg-card: #1a1d3a;
+  --bg-card-hover: #252850;
+  --gold: #ffd700;
+  --silver: #c0c0c0;
+  --bronze: #cd7f32;
+  --slate: #5a6478;
+  --orange: #ee6730;
+  --green: #2ecc71;
+  --red: #e74c3c;
+  --blue: #3a86c4;
+  --white: #f0f0f0;
+  --muted: #8892a4;
+  --court-tan: #c8956b;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--white);
+  min-height: 100vh;
+  background-image:
+    repeating-linear-gradient(90deg, transparent, transparent 120px, rgba(255,255,255,0.015) 120px, rgba(255,255,255,0.015) 121px),
+    repeating-linear-gradient(0deg, transparent, transparent 400px, rgba(139,90,43,0.03) 400px, rgba(139,90,43,0.03) 401px);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(15,17,35,0.97);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease;
+}
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.basketball {
+  width: 60px; height: 60px;
+  background: radial-gradient(circle at 35% 35%, #f4a460, #ee6730 40%, #c44d1a);
+  border-radius: 50%;
+  position: relative;
+  animation: bounce 0.6s cubic-bezier(0.28, 0.84, 0.42, 1) infinite alternate;
+}
+.basketball::before {
+  content: ''; position: absolute;
+  top: 48%; left: 5%; width: 90%; height: 2px;
+  background: rgba(0,0,0,0.4); border-radius: 50%;
+}
+.basketball::after {
+  content: ''; position: absolute;
+  left: 48%; top: 5%; width: 2px; height: 90%;
+  background: rgba(0,0,0,0.4); border-radius: 50%;
+}
+.bounce-shadow {
+  width: 50px; height: 10px; margin-top: 10px;
+  background: rgba(255,255,255,0.1); border-radius: 50%;
+  animation: shadow-scale 0.6s cubic-bezier(0.28, 0.84, 0.42, 1) infinite alternate;
+}
+.loading-text {
+  margin-top: 24px; font-size: 1.1rem; color: var(--muted);
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+@keyframes bounce { 0% { transform: translateY(0) scaleY(0.95) scaleX(1.05); } 100% { transform: translateY(-100px) scaleY(1.02) scaleX(0.98); } }
+@keyframes shadow-scale { 0% { transform: scaleX(1); opacity: 0.3; } 100% { transform: scaleX(0.4); opacity: 0.08; } }
+@keyframes pulse-text { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1a1d3a 0%, #2a1f3d 100%);
+  padding: 20px 24px 12px;
+  border-bottom: 3px solid var(--orange);
+  text-align: center;
+}
+.header h1 {
+  font-size: 2.2rem; font-weight: 900; letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--orange), var(--gold));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header .subtitle { color: var(--muted); font-size: 0.95rem; margin-top: 4px; }
+.stats-ribbon {
+  display: flex; justify-content: center; gap: 24px;
+  margin-top: 12px; padding: 8px 16px;
+  background: rgba(0,0,0,0.3); border-radius: 8px;
+  font-size: 0.85rem; color: var(--muted);
+  flex-wrap: wrap;
+}
+.stats-ribbon .stat-value { color: var(--white); font-weight: 700; }
+.stats-ribbon .live-dot {
+  display: inline-block; width: 8px; height: 8px;
+  background: var(--red); border-radius: 50%;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+  margin-right: 4px; vertical-align: middle;
+}
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* Live Ticker */
+.ticker-bar {
+  background: rgba(0,0,0,0.4); padding: 8px 0;
+  overflow: hidden; white-space: nowrap;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.ticker-track { display: flex; animation: scroll-left 40s linear infinite; }
+.ticker-game {
+  flex-shrink: 0; padding: 4px 20px;
+  font-size: 0.8rem; color: var(--muted);
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+.ticker-game .seed { color: var(--orange); font-weight: 700; font-size: 0.7rem; }
+.ticker-game .score { color: var(--white); font-weight: 700; }
+.ticker-game .live-badge {
+  color: var(--red); font-weight: 700; font-size: 0.7rem;
+  margin-left: 8px;
+}
+.ticker-game .final-badge { color: var(--muted); font-size: 0.7rem; margin-left: 8px; }
+@keyframes scroll-left { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+/* Search */
+.search-bar {
+  padding: 12px 24px;
+  background: rgba(0,0,0,0.2);
+}
+.search-bar input {
+  width: 100%; max-width: 400px; padding: 10px 16px;
+  background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; color: var(--white); font-size: 0.9rem;
+  outline: none;
+}
+.search-bar input:focus { border-color: var(--orange); }
+.search-bar input::placeholder { color: var(--muted); }
+
+/* Main Layout */
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Peloton Groups */
+.peloton {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(26,29,58,0.5);
+}
+.peloton-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  border-left: 4px solid var(--group-color);
+  background: rgba(0,0,0,0.3);
+}
+.peloton-title {
+  font-size: 1.1rem; font-weight: 800;
+  color: var(--group-color);
+  flex-grow: 1;
+}
+.peloton-range { font-size: 0.8rem; color: var(--muted); }
+.peloton-toggle {
+  background: none; border: none; color: var(--muted);
+  font-size: 1.2rem; cursor: pointer;
+  transition: transform 0.3s;
+}
+.peloton.collapsed .peloton-toggle { transform: rotate(-90deg); }
+.peloton-body {
+  max-height: 5000px; overflow: hidden;
+  transition: max-height 0.4s ease-out, padding 0.3s;
+  padding: 8px;
+}
+.peloton.collapsed .peloton-body {
+  max-height: 0; padding: 0 8px;
+}
+
+/* Player Cards */
+.player-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin: 3px 0;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.player-card:hover {
+  background: var(--bg-card-hover);
+  transform: translateX(4px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.player-card.dimmed { opacity: 0.3; }
+.player-card.highlighted {
+  box-shadow: 0 0 0 2px var(--orange), 0 0 12px rgba(238,103,48,0.3);
+}
+.player-card.moving-up { border-left-color: var(--green); }
+.player-card.moving-down { border-left-color: var(--red); }
+.player-card.big-mover { animation: glow-pulse 0.8s ease-out; }
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(238,103,48,0.6); }
+  70% { box-shadow: 0 0 15px 5px rgba(238,103,48,0.2); }
+  100% { box-shadow: 0 0 0 0 rgba(238,103,48,0); }
+}
+.rank-badge {
+  min-width: 40px; text-align: center;
+  font-weight: 900; font-size: 1rem;
+  padding: 4px 6px; border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+  color: var(--white);
+}
+.rank-1 .rank-badge { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #1a1d3a; }
+.rank-2 .rank-badge { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); color: #1a1d3a; }
+.rank-3 .rank-badge { background: linear-gradient(135deg, #cd7f32, #a0642a); color: #1a1d3a; }
+.movement {
+  min-width: 28px; text-align: center;
+  font-size: 0.75rem; font-weight: 700;
+}
+.movement.up { color: var(--green); }
+.movement.down { color: var(--red); }
+.movement.same { color: var(--muted); }
+.player-info { flex-grow: 1; min-width: 0; }
+.player-name {
+  font-weight: 700; font-size: 0.9rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.player-teams {
+  font-size: 0.7rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.score-display {
+  min-width: 60px; text-align: right;
+  font-weight: 900; font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.score-provisional {
+  font-size: 0.7rem; color: var(--orange);
+  font-weight: 400;
+}
+.alive-bar {
+  display: flex; gap: 2px; min-width: 56px;
+}
+.alive-bar span {
+  width: 6px; height: 6px; border-radius: 2px;
+}
+.alive-bar .alive { background: var(--green); }
+.alive-bar .eliminated { background: var(--red); opacity: 0.5; }
+.alive-bar .playing { background: var(--orange); animation: pulse-dot 1.5s infinite; }
+.payout-badge {
+  font-size: 0.65rem; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,215,0,0.15); color: var(--gold);
+  white-space: nowrap;
+}
+
+/* Sidebar */
+.sidebar { display: flex; flex-direction: column; gap: 16px; }
+.sidebar-section {
+  background: var(--bg-card); border-radius: 12px;
+  padding: 16px; border: 1px solid rgba(255,255,255,0.05);
+}
+.sidebar-section h3 {
+  font-size: 0.9rem; font-weight: 800; margin-bottom: 12px;
+  color: var(--orange); text-transform: uppercase; letter-spacing: 1px;
+}
+.payout-table { width: 100%; border-collapse: collapse; }
+.payout-table td {
+  padding: 5px 8px; font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.payout-table td:last-child {
+  text-align: right; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--green);
+}
+.payout-table tr:first-child td { color: var(--gold); font-weight: 800; }
+
+/* Team Status */
+.team-status-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.team-seed-badge {
+  min-width: 22px; text-align: center;
+  font-size: 0.7rem; font-weight: 700;
+  padding: 2px 4px; border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+}
+.team-status-item.elim { opacity: 0.4; text-decoration: line-through; }
+.team-status-item .team-pts { margin-left: auto; color: var(--green); font-weight: 700; }
+
+/* Game Log */
+.game-log-item {
+  padding: 6px 0; font-size: 0.78rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: var(--muted);
+}
+.game-log-item .winner { color: var(--white); font-weight: 700; }
+.game-log-item .round-badge {
+  font-size: 0.65rem; padding: 1px 6px;
+  border-radius: 4px; background: rgba(255,255,255,0.08);
+  margin-right: 6px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal-content {
+  background: var(--bg-card); border-radius: 16px;
+  padding: 24px; max-width: 520px; width: 90%;
+  max-height: 85vh; overflow-y: auto;
+  transform: translateY(30px) scale(0.97);
+  transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.25s;
+  opacity: 0;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.modal-overlay.active .modal-content { transform: translateY(0) scale(1); opacity: 1; }
+.modal-close {
+  position: absolute; top: 12px; right: 16px;
+  background: none; border: none; color: var(--muted);
+  font-size: 1.5rem; cursor: pointer;
+}
+.modal-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px; position: relative;
+}
+.modal-rank {
+  font-size: 1.8rem; font-weight: 900; color: var(--gold);
+}
+.modal-name { font-size: 1.3rem; font-weight: 800; }
+.modal-score {
+  margin-left: auto; font-size: 1.6rem; font-weight: 900;
+  color: var(--orange);
+}
+.modal-pick {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; margin: 4px 0;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.2);
+}
+.modal-pick.elim { opacity: 0.4; }
+.modal-pick .pick-seed {
+  min-width: 28px; text-align: center;
+  font-weight: 900; font-size: 0.85rem;
+  padding: 3px 6px; border-radius: 6px;
+  background: rgba(255,255,255,0.1);
+}
+.modal-pick .pick-team { flex-grow: 1; font-weight: 600; font-size: 0.9rem; }
+.modal-pick .pick-rounds { display: flex; gap: 4px; }
+.modal-pick .round-pill {
+  width: 20px; height: 20px;
+  border-radius: 4px; font-size: 0.6rem;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.round-pill.win { background: var(--green); color: #fff; }
+.round-pill.loss { background: var(--red); color: #fff; }
+.round-pill.pending { background: rgba(255,255,255,0.08); color: var(--muted); }
+.round-pill.live { background: var(--orange); color: #fff; animation: pulse-dot 1.5s infinite; }
+.modal-pick .pick-pts {
+  min-width: 40px; text-align: right;
+  font-weight: 800; color: var(--green);
+}
+.modal-max-possible {
+  margin-top: 16px; padding: 10px;
+  background: rgba(255,215,0,0.08); border-radius: 8px;
+  font-size: 0.85rem; text-align: center;
+}
+.modal-max-possible strong { color: var(--gold); }
+
+/* Refresh bar */
+.refresh-bar {
+  height: 3px; background: rgba(255,255,255,0.05);
+  position: relative;
+}
+.refresh-bar-fill {
+  height: 100%; background: var(--orange);
+  transition: width 1s linear;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .main-content { grid-template-columns: 1fr; }
+  .sidebar { order: 2; }
+  .header h1 { font-size: 1.6rem; }
+  .stats-ribbon { gap: 12px; font-size: 0.75rem; }
+}
+@media (max-width: 600px) {
+  .main-content { padding: 12px; }
+  .player-card { gap: 6px; padding: 6px 8px; }
+  .player-teams { display: none; }
+  .rank-badge { min-width: 32px; font-size: 0.85rem; }
+  .score-display { font-size: 0.95rem; min-width: 48px; }
+  .alive-bar span { width: 5px; height: 5px; }
+  .modal-content { padding: 16px; width: 95%; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="basketball"></div>
+  <div class="bounce-shadow"></div>
+  <div class="loading-text" id="loadingText">Warming up...</div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <h1>PICK-8 POOL</h1>
+  <div class="subtitle">2026 NCAA Tournament Horserace</div>
+  <div class="stats-ribbon">
+    <span><span class="stat-value" id="entryCount">338</span> Entries</span>
+    <span><span class="stat-value" id="currentRound">--</span></span>
+    <span><span class="stat-value" id="teamsAlive">--</span> Teams Alive</span>
+    <span id="liveIndicator" style="display:none"><span class="live-dot"></span><span class="stat-value" id="liveGameCount">0</span> Live</span>
+    <span>Refresh in <span class="stat-value" id="countdown">30</span>s</span>
+  </div>
+</div>
+
+<!-- Refresh Bar -->
+<div class="refresh-bar"><div class="refresh-bar-fill" id="refreshBarFill"></div></div>
+
+<!-- Live Ticker -->
+<div class="ticker-bar" id="tickerBar" style="display:none">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- Search -->
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Find your entries... type a name">
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+  <div class="race-track" id="raceTrack">
+    <!-- Peloton groups rendered by JS -->
+  </div>
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <h3>Payouts</h3>
+      <table class="payout-table">
+        <tr><td>1st Place</td><td>$811</td></tr>
+        <tr><td>2nd Place</td><td>$608</td></tr>
+        <tr><td>3rd Place</td><td>$439</td></tr>
+        <tr><td>4th Place</td><td>$338</td></tr>
+        <tr><td>5th Place</td><td>$237</td></tr>
+        <tr><td>6th Place</td><td>$169</td></tr>
+        <tr><td>7th Place</td><td>$135</td></tr>
+        <tr><td>8th Place</td><td>$135</td></tr>
+        <tr><td>9th Place</td><td>$101</td></tr>
+        <tr><td>10th Place</td><td>$101</td></tr>
+        <tr><td>11th Place</td><td>$76</td></tr>
+        <tr><td>12th Place</td><td>$63</td></tr>
+        <tr><td>13th Place</td><td>$63</td></tr>
+        <tr><td>14th Place</td><td>$51</td></tr>
+        <tr><td>15th Place</td><td>$51</td></tr>
+      </table>
+    </div>
+    <div class="sidebar-section">
+      <h3>Team Status</h3>
+      <div id="teamStatusList"></div>
+    </div>
+    <div class="sidebar-section">
+      <h3>Game Log</h3>
+      <div id="gameLog"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-content" id="modalContent"></div>
+</div>
+
+<script>
+// ============================================================
+//  TEAM SEEDS - All 64 tournament teams with their seeds
+// ============================================================
+const TEAM_SEEDS = {
+  "Duke": 1,
+  "Siena": 16,
+  "Ohio St": 8,
+  "TCU": 9,
+  "St. Johns": 5,
+  "Northern Iowa": 12,
+  "Kansas": 4,
+  "Cal Baptist": 13,
+  "Louisville": 6,
+  "South Florida": 11,
+  "Michigan St": 3,
+  "North Dakota St": 14,
+  "UCLA": 7,
+  "UCF": 10,
+  "UCONN": 2,
+  "Furman": 15,
+  "Florida": 1,
+  "PVAM / Lehigh": 16,
+  "Clemson": 8,
+  "Iowa": 9,
+  "Vanderbilt": 5,
+  "McNeese St": 12,
+  "Nebraska": 4,
+  "Troy": 13,
+  "North Carolina": 6,
+  "VCU": 11,
+  "Illinois": 3,
+  "Penn": 14,
+  "St. Marys": 7,
+  "Texas AM": 10,
+  "Houston": 2,
+  "Idaho": 15,
+  "Arizona": 1,
+  "LIU": 16,
+  "Villinova": 8,
+  "Utah St": 9,
+  "Wisconsin": 5,
+  "High Point": 12,
+  "Arkansas": 4,
+  "Hawaii": 13,
+  "BYU": 6,
+  "Texas": 11,
+  "Gonzaga": 3,
+  "Kenessaw St": 14,
+  "Miami": 7,
+  "Missouri": 10,
+  "Purdue": 2,
+  "Queens": 15,
+  "Michigan": 1,
+  "UMBC/Howard": 16,
+  "UGA": 8,
+  "St. Louis": 9,
+  "Texas Tech": 5,
+  "Akron": 12,
+  "Alabama": 4,
+  "Hofstra": 13,
+  "Tennessee": 6,
+  "Miami OH": 11,
+  "Virginia": 3,
+  "Wright St": 14,
+  "Kentucky": 7,
+  "Santa Clara": 10,
+  "Iowa St.": 2,
+  "Tennessee St": 15
+};
+
+// ============================================================
+//  PLAYER ENTRIES - 338 entries, each with 8 team picks
+//  (auto-generated from spreadsheet)
+// ============================================================
+const ENTRIES = [{"name": "A Norwood #1", "picks": ["Iowa St.", "Houston", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "Tennessee", "UCLA"]}, {"name": "A Norwood #2", "picks": ["Florida", "UCONN", "Iowa St.", "St. Johns", "Vanderbilt", "BYU", "Tennessee", "VCU"]}, {"name": "Abby Cole", "picks": ["Duke", "Arizona", "Illinois", "Texas Tech", "BYU", "UCLA", "Kentucky", "McNeese St"]}, {"name": "Adam Shapiro", "picks": ["Duke", "Michigan St", "Gonzaga", "Arkansas", "Nebraska", "Vanderbilt", "UGA", "Akron"]}, {"name": "AHO1", "picks": ["Purdue", "Houston", "Michigan St", "Alabama", "Nebraska", "St. Johns", "BYU", "Kentucky"]}, {"name": "AHO2", "picks": ["Purdue", "Houston", "Michigan St", "Arkansas", "Alabama", "Nebraska", "St. Johns", "Miami OH"]}, {"name": "Alan Friedman", "picks": ["Iowa St.", "Houston", "Gonzaga", "Arkansas", "St. Johns", "Vanderbilt", "UCLA", "Akron"]}, {"name": "Alan Mothner", "picks": ["Michigan St", "Virginia", "St. Johns", "Vanderbilt", "BYU", "VCU", "High Point", "Akron"]}, {"name": "Alex Dorfman #1", "picks": ["Iowa St.", "Houston", "Arkansas", "Alabama", "Nebraska", "Wisconsin", "Vanderbilt", "Tennessee"]}, {"name": "Alex Dorfman #2", "picks": ["Arkansas", "Alabama", "Nebraska", "Wisconsin", "Vanderbilt", "BYU", "Tennessee", "North Carolina"]}, {"name": "Alyssa G", "picks": ["Gonzaga", "Arkansas", "Texas Tech", "Louisville", "Kentucky", "St. Marys", "Villinova", "Miami OH"]}, {"name": "Alyssa Rosen #1", "picks": ["Alabama", "St. Johns", "BYU", "Miami", "UCF", "Miami OH", "High Point", "Hawaii"]}, {"name": "Amber Reed", "picks": ["Arizona", "Michigan", "UCONN", "Iowa St.", "Houston", "Gonzaga", "Kansas", "Texas Tech"]}, {"name": "Andy Creighton #1", "picks": ["Duke", "Arizona", "Iowa St.", "Houston", "Kansas", "Texas Tech", "BYU", "UCF"]}, {"name": "Andy Creighton #2", "picks": ["Duke", "Florida", "Arkansas", "Tennessee", "UCLA", "UGA", "Texas AM", "Texas"]}, {"name": "Arpit Mehta #1", "picks": ["Ohio St", "Villinova", "UGA", "Clemson", "Utah St", "Iowa", "Santa Clara", "Texas"]}, {"name": "Arpit Mehta #2", "picks": ["St. Johns", "UCLA", "Ohio St", "TCU", "Utah St", "St. Louis", "Miami OH", "VCU"]}, {"name": "Arpit Mehta #3", "picks": ["St. Johns", "Wisconsin", "Vanderbilt", "UCLA", "UCF", "Missouri", "Santa Clara", "Texas AM"]}, {"name": "Arpit Mehta #4", "picks": ["Purdue", "Iowa St.", "Texas Tech", "Vanderbilt", "BYU", "St. Louis", "South Florida", "VCU"]}, {"name": "Arpit Mehta #5", "picks": ["Texas Tech", "Vanderbilt", "BYU", "North Carolina", "UCLA", "St. Louis", "Santa Clara", "South Florida"]}, {"name": "Ben Upton", "picks": ["Arizona", "Michigan", "Florida", "Purdue", "Virginia", "Arkansas", "St. Johns", "Wisconsin"]}, {"name": "Blake Johnson", "picks": ["St. Johns", "Wisconsin", "Vanderbilt", "UCLA", "South Florida", "VCU", "Akron", "Hofstra"]}, {"name": "Blake Jordan", "picks": ["Duke", "Arizona", "Michigan St", "Illinois", "Vanderbilt", "Tennessee", "UCLA", "Texas"]}, {"name": "Blake Schommer", "picks": ["Nebraska", "Wisconsin", "BYU", "Miami", "Villinova", "TCU", "Iowa", "Akron"]}, {"name": "Blake Whitelaw 1", "picks": ["Arizona", "Iowa St.", "Michigan St", "Gonzaga", "Illinois", "Arkansas", "Vanderbilt", "Texas AM"]}, {"name": "Blake Whitelaw 2", "picks": ["Iowa St.", "Michigan St", "Gonzaga", "Illinois", "Arkansas", "Texas Tech", "Miami", "Texas AM"]}, {"name": "Bob Wiskind", "picks": ["Iowa St.", "Houston", "Michigan St", "Gonzaga", "Arkansas", "Nebraska", "Wisconsin", "Texas Tech"]}, {"name": "Bradley Reznik", "picks": ["Houston", "Michigan St", "Alabama", "Wisconsin", "TCU", "Santa Clara", "VCU", "McNeese St"]}, {"name": "Brian Barrett", "picks": ["Michigan St", "Illinois", "UCLA", "St. Louis", "Santa Clara", "Texas", "Akron", "McNeese St"]}, {"name": "Brian Barrett #2", "picks": ["Houston", "Gonzaga", "Illinois", "Wisconsin", "Tennessee", "St. Marys", "Iowa", "High Point"]}, {"name": "Brian Barrett #3", "picks": ["Virginia", "St. Johns", "Wisconsin", "North Carolina", "UCF", "Santa Clara", "McNeese St", "Queens"]}, {"name": "Brian Barrett #4", "picks": ["Arizona", "Michigan St", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "Tennessee", "Akron"]}, {"name": "Briana Johnson", "picks": ["Michigan St", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "Tennessee", "VCU", "Akron"]}, {"name": "Briana Schommer", "picks": ["Arizona", "Michigan", "UCONN", "Purdue", "Houston", "Illinois", "Texas Tech", "Kentucky"]}, {"name": "Brianna Conrad", "picks": ["Alabama", "Nebraska", "St. Johns", "Louisville", "Tennessee", "UCLA", "Kentucky", "St. Marys"]}, {"name": "brianwinterling#1", "picks": ["Virginia", "Nebraska", "St. Johns", "BYU", "Miami", "Santa Clara", "South Florida", "VCU"]}, {"name": "brianwinterling#2", "picks": ["Arizona", "Virginia", "Nebraska", "St. Johns", "Clemson", "Santa Clara", "South Florida", "VCU"]}, {"name": "brianwinterling#3", "picks": ["St. Johns", "BYU", "St. Marys", "Utah St", "Santa Clara", "South Florida", "VCU", "Akron"]}, {"name": "brianwinterling#4", "picks": ["Duke", "Arizona", "Michigan", "Florida", "Purdue", "Iowa St.", "Houston", "Michigan St"]}, {"name": "Bridget Mulcahy", "picks": ["Arizona", "Houston", "Michigan St", "Arkansas", "St. Johns", "Texas AM", "High Point", "Akron"]}, {"name": "Brock Weinsier", "picks": ["Michigan St", "Kansas", "Arkansas", "UCLA", "Kentucky", "Texas", "VCU", "McNeese St"]}, {"name": "Ca$h Weller", "picks": ["Florida", "Purdue", "Alabama", "North Carolina", "UCLA", "Texas", "Miami OH", "UMBC/Howard"]}, {"name": "Cam Schauf", "picks": ["Iowa St.", "Michigan St", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "Texas", "Miami OH"]}, {"name": "Carson Calahan", "picks": ["Houston", "Vanderbilt", "North Carolina", "Kentucky", "UGA", "Clemson", "Iowa", "Miami OH"]}, {"name": "Carson Duke", "picks": ["Duke", "Florida", "Iowa St.", "Illinois", "St. Johns", "Vanderbilt", "UCLA", "Troy"]}, {"name": "Carson McDaniel", "picks": ["Duke", "Arizona", "Iowa St.", "Houston", "Gonzaga", "Vanderbilt", "UCLA", "South Florida"]}, {"name": "Carter Schauf", "picks": ["Virginia", "St. Johns", "Wisconsin", "Vanderbilt", "St. Marys", "Iowa", "South Florida", "Akron"]}, {"name": "Cassidy Mills", "picks": ["UCONN", "Houston", "Arkansas", "St. Johns", "Vanderbilt", "Kentucky", "St. Marys", "Miami OH"]}, {"name": "Charlie Heineck #1", "picks": ["Iowa St.", "Alabama", "St. Johns", "Ohio St", "UGA", "UCF", "Texas", "Miami OH"]}, {"name": "Charlie Heineck #2", "picks": ["Michigan St", "Gonzaga", "Virginia", "Illinois", "Louisville", "BYU", "Tennessee", "North Carolina"]}, {"name": "Charlie Heineck #3", "picks": ["Arkansas", "Alabama", "St. Johns", "Vanderbilt", "Tennessee", "Miami", "Texas AM", "South Florida"]}, {"name": "Charlie Heineck #4", "picks": ["Michigan St", "Illinois", "Alabama", "St. Johns", "Vanderbilt", "BYU", "Miami", "Santa Clara"]}, {"name": "Charlie Hodges", "picks": ["UCONN", "Illinois", "Tennessee", "UCLA", "Ohio St", "TCU", "South Florida", "Penn"]}, {"name": "Chris Duke #1", "picks": ["Purdue", "Michigan St", "Virginia", "Vanderbilt", "St. Marys", "Santa Clara", "Texas", "High Point"]}, {"name": "Chris Duke #1", "picks": ["Michigan St", "Virginia", "Arkansas", "Vanderbilt", "Kentucky", "St. Marys", "Texas", "High Point"]}, {"name": "Chris Mills", "picks": ["Arizona", "Florida", "Purdue", "Houston", "Gonzaga", "Kansas", "St. Johns", "Texas Tech"]}, {"name": "Christopher Huebsch", "picks": ["Virginia", "St. Johns", "Wisconsin", "Miami", "Texas", "VCU", "Akron", "Troy"]}, {"name": "Christy Jones", "picks": ["Duke", "Kansas", "Texas Tech", "Vanderbilt", "North Carolina", "Villinova", "Missouri", "Miami OH"]}, {"name": "Christy Jones #2", "picks": ["Iowa St.", "Michigan St", "St. Johns", "Texas Tech", "Vanderbilt", "North Carolina", "Villinova", "Texas"]}, {"name": "Cirilo Custodio #1", "picks": ["Michigan St", "Arkansas", "St. Johns", "UCF", "Texas AM", "South Florida", "Miami OH", "VCU"]}, {"name": "Colin Whitermore", "picks": ["Duke", "Arizona", "Michigan", "Houston", "Illinois", "Arkansas", "Tennessee", "South Florida"]}, {"name": "Collin Tennant #1", "picks": ["Purdue", "Michigan St", "Illinois", "Nebraska", "Wisconsin", "Tennessee", "Kentucky", "Ohio St"]}, {"name": "Collin Tennant #2", "picks": ["Michigan", "Gonzaga", "Virginia", "Kansas", "North Carolina", "UCLA", "Villinova", "Iowa"]}, {"name": "Cooper Mills", "picks": ["Houston", "Gonzaga", "Kansas", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "UCF"]}, {"name": "Corey Brill #1", "picks": ["Houston", "Michigan St", "Gonzaga", "Arkansas", "Missouri", "Texas AM", "High Point", "McNeese St"]}, {"name": "Corey Brill #2", "picks": ["Purdue", "Virginia", "St. Johns", "North Carolina", "Texas AM", "VCU", "High Point", "Akron"]}, {"name": "Correy Jones 1", "picks": ["Purdue", "Iowa St.", "Michigan St", "Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt"]}, {"name": "Courtney Sievers #1", "picks": ["Arizona", "Florida", "Houston", "Michigan St", "Gonzaga", "Arkansas", "VCU", "Akron"]}, {"name": "Courtney Sievers #2", "picks": ["Michigan", "UCONN", "Purdue", "Iowa St.", "Illinois", "Nebraska", "St. Johns", "VCU"]}, {"name": "Cousins 3", "picks": ["Duke", "Michigan", "Iowa St.", "Arkansas", "Alabama", "Nebraska", "St. Johns", "Wisconsin"]}, {"name": "Craig Magnuson #1", "picks": ["Duke", "Florida", "Purdue", "Iowa St.", "Illinois", "Tennessee", "UCLA", "VCU"]}, {"name": "Craig Schommer #1", "picks": ["Illinois", "Nebraska", "St. Johns", "Wisconsin", "Texas Tech", "UCLA", "Miami", "Miami OH"]}, {"name": "Craig Schommer #2", "picks": ["Kansas", "Arkansas", "Alabama", "Tennessee", "Iowa", "South Florida", "Texas", "VCU"]}, {"name": "Craig Schommer #3", "picks": ["Nebraska", "St. Johns", "Wisconsin", "Texas Tech", "Tennessee", "UCLA", "Texas", "VCU"]}, {"name": "CW #2", "picks": ["Purdue", "Michigan St", "Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "Tennessee"]}, {"name": "CW #3", "picks": ["Arizona", "Kansas", "Vanderbilt", "Tennessee", "UCLA", "Miami", "St. Marys", "Santa Clara"]}, {"name": "CWb1", "picks": ["Virginia", "Arkansas", "Alabama", "Nebraska", "St. Johns", "North Carolina", "South Florida", "Texas"]}, {"name": "Dan Bouchard #1", "picks": ["Illinois", "St. Johns", "Wisconsin", "Texas Tech", "Vanderbilt", "Missouri", "Texas AM", "South Florida"]}, {"name": "Dan Bouchard #2", "picks": ["UCONN", "St. Johns", "Vanderbilt", "Louisville", "Santa Clara", "Texas AM", "Texas", "VCU"]}, {"name": "Dana Barlow", "picks": ["Arizona", "Houston", "Nebraska", "St. Johns", "Texas Tech", "Tennessee", "Texas", "VCU"]}, {"name": "Dana Barlow #2", "picks": ["Michigan St", "Illinois", "Arkansas", "Tennessee", "UCLA", "Iowa", "Missouri", "VCU"]}, {"name": "Dave Goodspeed", "picks": ["Michigan", "Gonzaga", "Illinois", "Vanderbilt", "Tennessee", "UCLA", "South Florida", "Akron"]}, {"name": "David Eckhart #1", "picks": ["Duke", "Purdue", "Michigan St", "Virginia", "Nebraska", "St. Johns", "Texas Tech", "Miami OH"]}, {"name": "David Hagy #1", "picks": ["Duke", "Arizona", "Michigan", "Michigan St", "Virginia", "Illinois", "St. Johns", "Miami"]}, {"name": "David Sherman #1", "picks": ["Arizona", "Purdue", "Illinois", "St. Johns", "Louisville", "Ohio St", "UCF", "South Florida"]}, {"name": "David Weinsier", "picks": ["Gonzaga", "Virginia", "Illinois", "Nebraska", "Wisconsin", "Louisville", "Missouri", "Texas"]}, {"name": "Dino Stambolitis", "picks": ["Duke", "Arizona", "Michigan", "Florida", "UCONN", "Virginia", "St. Johns", "Kentucky"]}, {"name": "Doug Calahan", "picks": ["Iowa St.", "Vanderbilt", "BYU", "UCLA", "St. Louis", "South Florida", "VCU", "High Point"]}, {"name": "DouGPT", "picks": ["Arizona", "UCONN", "Michigan St", "Kansas", "St. Johns", "Louisville", "UCLA", "Utah St"]}, {"name": "DougT#2", "picks": ["Duke", "Arizona", "Michigan", "Florida", "Iowa St.", "Houston", "Michigan St", "Gonzaga"]}, {"name": "DougT#3", "picks": ["St. Louis", "Miami OH", "VCU", "High Point", "Akron", "Hofstra", "Troy", "Wright St"]}, {"name": "Dubie Dubendorfer #1", "picks": ["Duke", "Arizona", "Michigan", "Florida", "UCONN", "Purdue", "Iowa St.", "Gonzaga"]}, {"name": "Dubie Dubendorfer #2", "picks": ["Duke", "Arizona", "UCONN", "Houston", "Michigan St", "Virginia", "St. Johns", "Akron"]}, {"name": "Dubie Dubendorfer #2", "picks": ["Duke", "Purdue", "Gonzaga", "Illinois", "Wisconsin", "Vanderbilt", "Miami OH", "Akron"]}, {"name": "DuckU #1", "picks": ["Iowa St.", "Michigan St", "Arkansas", "Vanderbilt", "Tennessee", "South Florida", "Texas", "VCU"]}, {"name": "DuckU #2", "picks": ["Purdue", "Michigan St", "Arkansas", "Tennessee", "Iowa", "VCU", "Akron", "Cal Baptist"]}, {"name": "DuckU #3", "picks": ["Vanderbilt", "UCLA", "Utah St", "Santa Clara", "Texas AM", "South Florida", "Texas", "Akron"]}, {"name": "Ed Attarian", "picks": ["Duke", "Michigan", "Purdue", "Iowa St.", "Tennessee", "UCLA", "Akron", "McNeese St"]}, {"name": "Elaine Foerster", "picks": ["Kansas", "Texas Tech", "St. Marys", "Villinova", "Iowa", "Texas AM", "Northern Iowa", "North Dakota St"]}, {"name": "Elaine Foerster #2", "picks": ["Gonzaga", "Illinois", "Miami", "Kentucky", "Utah St", "Santa Clara", "Cal Baptist", "Tennessee St"]}, {"name": "Eliot Brown #1", "picks": ["Duke", "Michigan", "UCONN", "Michigan St", "Gonzaga", "Arkansas", "Texas Tech", "VCU"]}, {"name": "ELLiberator", "picks": ["Iowa St.", "Gonzaga", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "South Florida", "Akron"]}, {"name": "Emily Hutson", "picks": ["Illinois", "Wisconsin", "UCLA", "St. Louis", "Iowa", "South Florida", "VCU", "Akron"]}, {"name": "Emily Hutson #2", "picks": ["Purdue", "Alabama", "Nebraska", "Vanderbilt", "St. Marys", "UGA", "Northern Iowa", "High Point"]}, {"name": "Eric Braesch", "picks": ["Gonzaga", "Illinois", "St. Johns", "Vanderbilt", "Louisville", "Tennessee", "UCLA", "Akron"]}, {"name": "Eric Foerster", "picks": ["Arizona", "Iowa St.", "Houston", "Illinois", "St. Johns", "Texas Tech", "Tennessee", "VCU"]}, {"name": "Erik Jensen", "picks": ["Arizona", "Houston", "Illinois", "Arkansas", "Vanderbilt", "Tennessee", "Miami", "Texas"]}, {"name": "Erik Poch", "picks": ["Arizona", "Michigan", "Michigan St", "Virginia", "Illinois", "Arkansas", "St. Johns", "Vanderbilt"]}, {"name": "Erik Poch #2", "picks": ["Duke", "Arizona", "Michigan", "Florida", "Purdue", "Iowa St.", "Houston", "Michigan St"]}, {"name": "Erik Poch #3", "picks": ["Michigan", "Florida", "Virginia", "Arkansas", "St. Johns", "Wisconsin", "South Florida", "VCU"]}, {"name": "Ethan Davis", "picks": ["Michigan", "Houston", "Michigan St", "Virginia", "St. Johns", "BYU", "Clemson", "Utah St"]}, {"name": "Evan Gross", "picks": ["Arizona", "Gonzaga", "St. Johns", "Texas Tech", "Tennessee", "Utah St", "South Florida", "VCU"]}, {"name": "Faith Koteff #1", "picks": ["Arizona", "Purdue", "Michigan St", "Illinois", "St. Johns", "Texas Tech", "Vanderbilt", "Tennessee"]}, {"name": "Ford Boock", "picks": ["Duke", "Arizona", "Arkansas", "St. Johns", "Wisconsin", "Texas Tech", "Vanderbilt", "Clemson"]}, {"name": "G$", "picks": ["Arizona", "Iowa St.", "Houston", "Gonzaga", "St. Johns", "St. Marys", "High Point", "Akron"]}, {"name": "Gabe Murphy", "picks": ["Arizona", "Gonzaga", "Illinois", "St. Johns", "Kentucky", "South Florida", "Akron", "Troy"]}, {"name": "GGreen 1", "picks": ["Michigan St", "Gonzaga", "Illinois", "Arkansas", "St. Johns", "St. Marys", "Iowa", "Texas"]}, {"name": "GGreen 2", "picks": ["St. Johns", "Wisconsin", "Texas Tech", "Vanderbilt", "UCLA", "Miami", "Kentucky", "St. Marys"]}, {"name": "GGreen 3", "picks": ["Houston", "Michigan St", "Virginia", "Nebraska", "St. Johns", "Texas Tech", "Iowa", "VCU"]}, {"name": "Gibbons #1", "picks": ["Arizona", "Iowa St.", "Houston", "Michigan St", "Arkansas", "St. Johns", "Vanderbilt", "VCU"]}, {"name": "Grace Oakes", "picks": ["Houston", "Michigan St", "Gonzaga", "Alabama", "Wisconsin", "Tennessee", "Ohio St", "VCU"]}, {"name": "Gregg B", "picks": ["Iowa St.", "Houston", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "Miami OH", "Akron"]}, {"name": "GW1", "picks": ["Duke", "Houston", "Gonzaga", "Arkansas", "Alabama", "Nebraska", "Louisville", "Miami OH"]}, {"name": "GW2", "picks": ["Arizona", "UCONN", "Virginia", "Alabama", "Nebraska", "St. Johns", "North Carolina", "Miami"]}, {"name": "GW3", "picks": ["Florida", "UCONN", "Iowa St.", "Gonzaga", "Illinois", "Arkansas", "St. Johns", "St. Louis"]}, {"name": "Has Franklin", "picks": ["Duke", "Arizona", "Houston", "Michigan St", "Virginia", "Arkansas", "Vanderbilt", "Miami OH"]}, {"name": "Humphrey", "picks": ["UCONN", "Gonzaga", "Illinois", "Alabama", "St. Johns", "Wisconsin", "Vanderbilt", "Kentucky"]}, {"name": "Jack hutchens", "picks": ["Duke", "Houston", "Gonzaga", "Kansas", "Arkansas", "Vanderbilt", "UCLA", "Miami"]}, {"name": "Jacob Delano #1", "picks": ["Duke", "Arizona", "Houston", "Illinois", "St. Johns", "Vanderbilt", "UCF", "Texas"]}, {"name": "Jake S #1", "picks": ["Duke", "Arizona", "Iowa St.", "Houston", "Michigan St", "Gonzaga", "Virginia", "Arkansas"]}, {"name": "Jake S #2", "picks": ["Duke", "Arizona", "Houston", "Michigan St", "Gonzaga", "Virginia", "Nebraska", "St. Johns"]}, {"name": "Jamie Murphy", "picks": ["UCONN", "Iowa St.", "Arkansas", "St. Johns", "Texas Tech", "Santa Clara", "VCU", "Northern Iowa"]}, {"name": "Jared Brown #1", "picks": ["Arizona", "Iowa St.", "Houston", "Arkansas", "St. Johns", "UCLA", "Iowa", "North Dakota St"]}, {"name": "Jared Smola", "picks": ["Iowa St.", "Gonzaga", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "Louisville", "Tennessee"]}, {"name": "Jason Leask", "picks": ["Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "Tennessee", "UCLA", "Texas"]}, {"name": "Jason Lee", "picks": ["Michigan", "UCONN", "Iowa St.", "Michigan St", "Illinois", "Wisconsin", "Missouri", "Akron"]}, {"name": "Jason Skaggs", "picks": ["Gonzaga", "Virginia", "Tennessee", "UCLA", "Iowa", "Santa Clara", "South Florida", "VCU"]}, {"name": "Jay Biehl #1", "picks": ["Michigan", "Purdue", "Michigan St", "Illinois", "Nebraska", "St. Johns", "Wisconsin", "Akron"]}, {"name": "Jay Biehl #2", "picks": ["Duke", "Arizona", "UCONN", "Iowa St.", "Arkansas", "Alabama", "Vanderbilt", "VCU"]}, {"name": "Jeanette Sagmoe #1", "picks": ["Arizona", "Florida", "Iowa St.", "Houston", "Michigan St", "St. Johns", "Texas Tech", "Texas"]}, {"name": "Jeanette Sagmoe #2", "picks": ["Duke", "Michigan", "Purdue", "Illinois", "Arkansas", "Vanderbilt", "Tennessee", "UCF"]}, {"name": "Jeanette Sagmoe #3", "picks": ["UCONN", "Gonzaga", "Virginia", "Kansas", "Nebraska", "North Carolina", "High Point", "Akron"]}, {"name": "Jeff Draper #1", "picks": ["Arizona", "Michigan", "Florida", "UCONN", "Purdue", "Illinois", "St. Johns", "Santa Clara"]}, {"name": "Jeff Draper #2", "picks": ["Duke", "Houston", "Michigan St", "Gonzaga", "Virginia", "Arkansas", "Vanderbilt", "Akron"]}, {"name": "Jeff Wright", "picks": ["Gonzaga", "Kansas", "Vanderbilt", "North Carolina", "UCLA", "Kentucky", "St. Louis", "High Point"]}, {"name": "Jenkins AirPower", "picks": ["Arkansas", "St. Johns", "BYU", "Kentucky", "Santa Clara", "South Florida", "Miami OH", "VCU"]}, {"name": "Jessica Davis #1", "picks": ["Purdue", "Iowa St.", "Houston", "Gonzaga", "Illinois", "St. Marys", "St. Louis", "Iowa"]}, {"name": "Jessica Davis #2", "picks": ["Houston", "Gonzaga", "Arkansas", "St. Johns", "Vanderbilt", "Louisville", "Tennessee", "UCLA"]}, {"name": "Jessica Davis #3", "picks": ["Arizona", "Michigan St", "Virginia", "Vanderbilt", "BYU", "Ohio St", "Miami OH", "Hawaii"]}, {"name": "Jim Fonow", "picks": ["Duke", "Purdue", "Michigan St", "Virginia", "Illinois", "Nebraska", "BYU", "North Carolina"]}, {"name": "Jim Sherrill", "picks": ["Michigan", "Michigan St", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "Tennessee", "Missouri"]}, {"name": "Jim Walsh", "picks": ["Houston", "Gonzaga", "Virginia", "St. Johns", "Wisconsin", "Vanderbilt", "South Florida", "Akron"]}, {"name": "Joe Flabeetz", "picks": ["Michigan", "Gonzaga", "Arkansas", "St. Johns", "Vanderbilt", "UCF", "Santa Clara", "VCU"]}, {"name": "Joe Marucci #1", "picks": ["Duke", "Michigan", "Arkansas", "North Carolina", "Miami", "TCU", "UCF", "Texas AM"]}, {"name": "Jordan Parry #1", "picks": ["Duke", "Houston", "Michigan St", "Gonzaga", "Wisconsin", "Vanderbilt", "Tennessee", "VCU"]}, {"name": "Jordan Parry #2", "picks": ["Duke", "Michigan", "Houston", "Michigan St", "Illinois", "Arkansas", "Texas Tech", "Missouri"]}, {"name": "Josiah Baumann #1", "picks": ["Michigan", "Houston", "Michigan St", "Virginia", "Arkansas", "St. Johns", "Wisconsin", "Vanderbilt"]}, {"name": "Julie Sherman #1", "picks": ["Duke", "Arizona", "Michigan", "Illinois", "Wisconsin", "Ohio St", "Iowa", "VCU"]}, {"name": "Julie Sherman #2", "picks": ["Duke", "Purdue", "Illinois", "Wisconsin", "UCLA", "St. Marys", "TCU", "Iowa"]}, {"name": "Justin Green #1", "picks": ["Houston", "Kansas", "Arkansas", "Texas Tech", "Vanderbilt", "Miami", "South Florida", "Miami OH"]}, {"name": "Justin Green #2", "picks": ["Virginia", "Kansas", "Arkansas", "Alabama", "Vanderbilt", "Louisville", "Texas AM", "Texas"]}, {"name": "Ken May", "picks": ["Purdue", "Houston", "Alabama", "Wisconsin", "Vanderbilt", "UCLA", "South Florida", "Miami OH"]}, {"name": "Ken May 2", "picks": ["Arizona", "Iowa St.", "Illinois", "Kansas", "UCLA", "Missouri", "Hofstra", "Troy"]}, {"name": "Ken May 3", "picks": ["Virginia", "Arkansas", "St. Johns", "BYU", "UCF", "VCU", "Akron", "McNeese St"]}, {"name": "Kevin Hydock", "picks": ["UCONN", "Michigan St", "Texas Tech", "Tennessee", "Miami", "South Florida", "Northern Iowa", "Cal Baptist"]}, {"name": "Kevin Parker", "picks": ["Arizona", "Virginia", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "Akron"]}, {"name": "Kevin Parker #2", "picks": ["Arizona", "St. Johns", "Wisconsin", "Vanderbilt", "Miami", "Ohio St", "South Florida", "Miami OH"]}, {"name": "Kim Langstaff", "picks": ["Arizona", "Iowa St.", "Michigan St", "Illinois", "St. Johns", "Vanderbilt", "Tennessee", "Texas"]}, {"name": "Kim Langstaff's dad", "picks": ["Virginia", "Arkansas", "St. Johns", "Vanderbilt", "North Carolina", "Miami", "South Florida", "Akron"]}, {"name": "Kim Langstaff's mom", "picks": ["Virginia", "Vanderbilt", "North Carolina", "Miami", "UCF", "Santa Clara", "High Point", "Akron"]}, {"name": "KRISANTOLAK1", "picks": ["UCONN", "Arkansas", "Vanderbilt", "North Carolina", "Texas AM", "Texas", "Northern Iowa", "Troy"]}, {"name": "KRISANTOLAK2", "picks": ["UCONN", "Arkansas", "Texas Tech", "North Carolina", "Miami", "Texas", "Northern Iowa", "Hofstra"]}, {"name": "KRISANTOLAK3", "picks": ["Michigan St", "Kansas", "Texas Tech", "Texas", "Miami OH", "Northern Iowa", "Cal Baptist", "Hofstra"]}, {"name": "Kristin Cuddeback", "picks": ["Gonzaga", "Arkansas", "St. Johns", "Louisville", "Tennessee", "Clemson", "VCU", "Akron"]}, {"name": "Krugel 1", "picks": ["Gonzaga", "Illinois", "St. Johns", "Wisconsin", "Texas Tech", "Vanderbilt", "Louisville", "Tennessee"]}, {"name": "Krugel 2", "picks": ["Gonzaga", "Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "Louisville", "Tennessee"]}, {"name": "Krugel 3", "picks": ["Michigan St", "Gonzaga", "Illinois", "St. Johns", "Wisconsin", "Texas Tech", "Vanderbilt", "Tennessee"]}, {"name": "Krugel 4", "picks": ["Michigan St", "Gonzaga", "Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "Tennessee"]}, {"name": "Kyle Sherman #1", "picks": ["Iowa St.", "Gonzaga", "Illinois", "Kansas", "Texas Tech", "Miami", "South Florida", "McNeese St"]}, {"name": "Kyle Sherman #2", "picks": ["Duke", "Illinois", "Texas Tech", "Vanderbilt", "Louisville", "Tennessee", "Iowa", "Missouri"]}, {"name": "Lalon Allen #1", "picks": ["Purdue", "Illinois", "Kansas", "Alabama", "Nebraska", "Wisconsin", "Tennessee", "UCLA"]}, {"name": "Lalon Allen #2", "picks": ["Miami", "Santa Clara", "South Florida", "VCU", "Akron", "McNeese St", "Cal Baptist", "Hofstra"]}, {"name": "Levi Allen #1", "picks": ["UCONN", "Houston", "Virginia", "St. Johns", "Wisconsin", "Vanderbilt", "BYU", "Akron"]}, {"name": "Levi Allen #2", "picks": ["Purdue", "Iowa St.", "Illinois", "Kansas", "Nebraska", "UCLA", "High Point", "Akron"]}, {"name": "Lisa Stiglitz #1", "picks": ["Houston", "Gonzaga", "St. Johns", "BYU", "Clemson", "Santa Clara", "VCU", "Akron"]}, {"name": "Lisa Stiglitz #2", "picks": ["Arkansas", "Vanderbilt", "BYU", "Kentucky", "St. Louis", "Texas AM", "VCU", "Hofstra"]}, {"name": "Liz Barrett", "picks": ["Duke", "Iowa St.", "Houston", "Illinois", "Alabama", "Wisconsin", "Vanderbilt", "Texas AM"]}, {"name": "Louie Cohen #1", "picks": ["Michigan St", "Illinois", "St. Johns", "Texas Tech", "Vanderbilt", "BYU", "UCLA", "South Florida"]}, {"name": "Louie Cohen #2", "picks": ["Arizona", "Michigan St", "Illinois", "Texas Tech", "BYU", "South Florida", "McNeese St", "Hofstra"]}, {"name": "Luke Adcox", "picks": ["Gonzaga", "Arkansas", "Wisconsin", "North Carolina", "Miami", "Ohio St", "Texas AM", "McNeese St"]}, {"name": "Marianne Panish", "picks": ["Gonzaga", "St. Johns", "Vanderbilt", "UCLA", "St. Marys", "UGA", "Utah St", "Wright St"]}, {"name": "Marna Parslow #1", "picks": ["Duke", "Arizona", "Houston", "Kansas", "Wisconsin", "BYU", "UCLA", "VCU"]}, {"name": "Marna Parslow #2", "picks": ["Purdue", "Gonzaga", "Illinois", "Tennessee", "St. Marys", "Clemson", "Missouri", "Akron"]}, {"name": "Marna Parslow #3", "picks": ["UCONN", "Iowa St.", "Alabama", "Texas Tech", "Vanderbilt", "Miami", "Texas AM", "South Florida"]}, {"name": "Marna Parslow #4", "picks": ["Virginia", "Kansas", "Nebraska", "Wisconsin", "Tennessee", "UCLA", "Missouri", "Santa Clara"]}, {"name": "Marna Parslow #5", "picks": ["Arizona", "Michigan", "Illinois", "Arkansas", "North Carolina", "Kentucky", "VCU", "Akron"]}, {"name": "Martin Lai Tyam", "picks": ["Arizona", "Michigan St", "Gonzaga", "Texas Tech", "Vanderbilt", "Tennessee", "Ohio St", "VCU"]}, {"name": "Mary Johnson", "picks": ["Duke", "Arizona", "UCONN", "Iowa St.", "Houston", "Illinois", "Arkansas", "Nebraska"]}, {"name": "Mason Galvin", "picks": ["Michigan", "Purdue", "Houston", "Michigan St", "Illinois", "St. Johns", "Wisconsin", "Louisville"]}, {"name": "Matt Schauf", "picks": ["Gonzaga", "Illinois", "St. Marys", "Utah St", "St. Louis", "Santa Clara", "South Florida", "McNeese St"]}, {"name": "Matt Stedt", "picks": ["Michigan", "Purdue", "Gonzaga", "Texas Tech", "Vanderbilt", "Louisville", "North Carolina", "Miami OH"]}, {"name": "Matthew Nunez #1", "picks": ["Duke", "Arizona", "Michigan", "Florida", "Houston", "Michigan St", "Illinois", "Arkansas"]}, {"name": "Max Murphy #1", "picks": ["Duke", "Arizona", "Houston", "Gonzaga", "Arkansas", "St. Johns", "BYU", "South Florida"]}, {"name": "MaxPT", "picks": ["Michigan St", "Gonzaga", "Illinois", "Kansas", "Texas Tech", "North Carolina", "Iowa", "McNeese St"]}, {"name": "Mazi #1", "picks": ["Arizona", "Michigan", "Iowa St.", "Illinois", "St. Johns", "South Florida", "VCU", "Troy"]}, {"name": "Mazi #2", "picks": ["Duke", "UCONN", "Houston", "Arkansas", "Texas Tech", "Utah St", "Santa Clara", "Penn"]}, {"name": "Mazi #3", "picks": ["Houston", "Michigan St", "Wisconsin", "BYU", "Ohio St", "Clemson", "UCF", "Cal Baptist"]}, {"name": "Mazi #4", "picks": ["Duke", "Florida", "Purdue", "Gonzaga", "Vanderbilt", "St. Marys", "Missouri", "High Point"]}, {"name": "Merrick#2", "picks": ["Gonzaga", "Illinois", "Kansas", "Alabama", "Miami", "Kentucky", "St. Marys", "Texas AM"]}, {"name": "Merrick#3", "picks": ["Houston", "Gonzaga", "Illinois", "Kansas", "Alabama", "St. Marys", "Texas AM", "High Point"]}, {"name": "Merrick#4", "picks": ["Illinois", "Alabama", "Kentucky", "St. Marys", "Missouri", "Santa Clara", "Texas AM", "High Point"]}, {"name": "MerrickB#1", "picks": ["Duke", "Houston", "Michigan St", "Illinois", "Kansas", "Alabama", "Miami", "St. Marys"]}, {"name": "Michael Willian", "picks": ["Arizona", "Michigan St", "Virginia", "Illinois", "Arkansas", "Alabama", "St. Johns", "Vanderbilt"]}, {"name": "Mike Lungarini #1", "picks": ["Arizona", "UCONN", "Iowa St.", "Michigan St", "Arkansas", "St. Johns", "South Florida", "Miami OH"]}, {"name": "Mike Mulcahy #1", "picks": ["Duke", "Arizona", "Gonzaga", "Virginia", "Arkansas", "Alabama", "St. Johns", "North Carolina"]}, {"name": "Mike Thomas 1", "picks": ["Florida", "Purdue", "Houston", "Alabama", "Vanderbilt", "Tennessee", "UCF", "Missouri"]}, {"name": "Mike Thomas 2", "picks": ["Duke", "Michigan", "Arkansas", "St. Johns", "North Carolina", "St. Marys", "Texas AM", "VCU"]}, {"name": "Moma Dance", "picks": ["Arizona", "Michigan", "Iowa St.", "Michigan St", "Vanderbilt", "UCLA", "VCU", "Akron"]}, {"name": "Moma Dance Reprise", "picks": ["Arizona", "Michigan", "Iowa St.", "Michigan St", "Illinois", "St. Johns", "BYU", "McNeese St"]}, {"name": "NapaKojak 1", "picks": ["Houston", "Illinois", "Kansas", "Alabama", "Wisconsin", "Vanderbilt", "Louisville", "Tennessee"]}, {"name": "NapaKojak 2", "picks": ["Duke", "Arizona", "Houston", "Illinois", "Alabama", "Wisconsin", "UCLA", "Miami OH"]}, {"name": "NapaKojak 3", "picks": ["Arizona", "Houston", "Illinois", "Arkansas", "Wisconsin", "North Carolina", "UCLA", "Clemson"]}, {"name": "NapaKojak 4", "picks": ["Duke", "Iowa St.", "Houston", "Gonzaga", "Arkansas", "Wisconsin", "North Carolina", "Miami OH"]}, {"name": "NapaKojak 5", "picks": ["Arizona", "UCONN", "Gonzaga", "Illinois", "Wisconsin", "Louisville", "UCLA", "Miami OH"]}, {"name": "Nathaniel Lee", "picks": ["UCONN", "Iowa St.", "Houston", "Alabama", "Wisconsin", "Clemson", "TCU", "Texas"]}, {"name": "Neal Papajcik #1", "picks": ["Duke", "Arizona", "Michigan", "UCONN", "Houston", "Gonzaga", "Miami OH", "VCU"]}, {"name": "Neal Papajcik #2", "picks": ["Duke", "Arizona", "Michigan", "Iowa St.", "Michigan St", "Illinois", "Miami", "Texas"]}, {"name": "Nick \"Tarheel\" Davis #1", "picks": ["Michigan St", "Gonzaga", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "North Carolina", "Kentucky"]}, {"name": "Nick \"Tarheel\" Davis #2", "picks": ["Virginia", "Illinois", "BYU", "St. Louis", "UCF", "South Florida", "VCU", "High Point"]}, {"name": "Nick \"Tarheel\" Davis #3", "picks": ["Kansas", "Arkansas", "Vanderbilt", "North Carolina", "Utah St", "St. Louis", "South Florida", "Hofstra"]}, {"name": "Nick \"Tarheel\" Davis #4", "picks": ["Duke", "Arizona", "Michigan", "Florida", "Purdue", "Iowa St.", "Kansas", "Vanderbilt"]}, {"name": "Nick \"Tarheel\" Davis #5", "picks": ["Michigan", "Purdue", "Iowa St.", "Houston", "Michigan St", "Kansas", "Arkansas", "Vanderbilt"]}, {"name": "Nick \u201cOhio\u201d Davis # 1", "picks": ["Arizona", "Iowa St.", "Michigan St", "St. Johns", "Wisconsin", "BYU", "St. Marys", "VCU"]}, {"name": "Nick \u201cOhio\u201d Davis # 2", "picks": ["Michigan St", "Nebraska", "BYU", "St. Marys", "Ohio St", "Santa Clara", "Miami OH", "Akron"]}, {"name": "Nick Nacchia", "picks": ["Gonzaga", "Arkansas", "Alabama", "Nebraska", "St. Johns", "Louisville", "Tennessee", "Akron"]}, {"name": "Nirvan Bernstein #1", "picks": ["Duke", "Arizona", "Houston", "Virginia", "Alabama", "Vanderbilt", "Miami", "South Florida"]}, {"name": "Nirvan Bernstein #2", "picks": ["Duke", "Florida", "Michigan St", "Gonzaga", "Illinois", "Wisconsin", "Santa Clara", "Akron"]}, {"name": "Noochers", "picks": ["Gonzaga", "Arkansas", "St. Johns", "Vanderbilt", "Tennessee", "Santa Clara", "South Florida", "Penn"]}, {"name": "NSJ 1", "picks": ["Duke", "Arizona", "Michigan", "Florida", "Iowa St.", "Illinois", "Wisconsin", "Vanderbilt"]}, {"name": "NSJ2", "picks": ["Arizona", "Michigan", "Florida", "Iowa St.", "Houston", "Michigan St", "Vanderbilt", "Northern Iowa"]}, {"name": "NSJ3", "picks": ["Duke", "Michigan", "Illinois", "Wisconsin", "Vanderbilt", "Tennessee", "UCLA", "Missouri"]}, {"name": "Oliver Zunder", "picks": ["Michigan St", "Arkansas", "UCLA", "Miami", "TCU", "Texas", "VCU", "Troy"]}, {"name": "Patrick Amerena 1", "picks": ["St. Johns", "Wisconsin", "Vanderbilt", "Miami", "UCF", "Texas AM", "South Florida", "Texas"]}, {"name": "Patrick Amerena 2", "picks": ["Texas Tech", "Louisville", "BYU", "Tennessee", "North Carolina", "Missouri", "Akron", "Troy"]}, {"name": "Patrick Duke", "picks": ["Michigan", "Gonzaga", "Illinois", "Kansas", "Arkansas", "Tennessee", "UCLA", "Missouri"]}, {"name": "Patrick Thornham 1", "picks": ["Duke", "Arizona", "Michigan", "Houston", "Michigan St", "Kansas", "Arkansas", "Vanderbilt"]}, {"name": "Peggy Thomas", "picks": ["Florida", "Gonzaga", "Illinois", "Wisconsin", "Louisville", "Kentucky", "UCF", "South Florida"]}, {"name": "Pepper 1", "picks": ["Duke", "Arizona", "Michigan", "Houston", "Illinois", "Arkansas", "Tennessee", "Texas"]}, {"name": "Pepper 2", "picks": ["Duke", "Arizona", "Florida", "Purdue", "Iowa St.", "Arkansas", "Texas", "Miami OH"]}, {"name": "Peter Martin", "picks": ["Michigan St", "Virginia", "Illinois", "Alabama", "St. Johns", "Wisconsin", "Vanderbilt", "BYU"]}, {"name": "PSmitty #1", "picks": ["Houston", "Michigan St", "St. Johns", "Tennessee", "St. Marys", "Santa Clara", "VCU", "Akron"]}, {"name": "PSmitty2", "picks": ["Houston", "Illinois", "Arkansas", "Vanderbilt", "Tennessee", "Miami", "Ohio St", "Akron"]}, {"name": "PSmitty3", "picks": ["St. Johns", "Vanderbilt", "Tennessee", "Miami", "Santa Clara", "Texas", "Akron", "Hawaii"]}, {"name": "Rachel Weller", "picks": ["Michigan", "Kansas", "Vanderbilt", "North Carolina", "UCLA", "Santa Clara", "High Point", "Hofstra"]}, {"name": "Rachel Weller #2", "picks": ["Duke", "Michigan St", "Wisconsin", "Vanderbilt", "BYU", "Texas", "Miami OH", "Hofstra"]}, {"name": "Rahul Sethna", "picks": ["Illinois", "Arkansas", "St. Johns", "Wisconsin", "Vanderbilt", "Louisville", "Tennessee", "UCLA"]}, {"name": "Ratajczak #1", "picks": ["Duke", "Virginia", "St. Johns", "North Carolina", "Villinova", "UGA", "Clemson", "Queens"]}, {"name": "Ratajczak #2", "picks": ["Duke", "Michigan", "UCONN", "Purdue", "Virginia", "North Carolina", "Villinova", "Clemson"]}, {"name": "Ratajczak #3", "picks": ["UCONN", "Alabama", "St. Johns", "Tennessee", "North Carolina", "Miami", "St. Marys", "Villinova"]}, {"name": "Ratajczak #4", "picks": ["Duke", "UCONN", "Tennessee", "North Carolina", "Villinova", "UGA", "Clemson", "Queens"]}, {"name": "Reeder 1", "picks": ["UCONN", "Purdue", "Houston", "Virginia", "St. Johns", "Wisconsin", "BYU", "VCU"]}, {"name": "Reeder 2", "picks": ["Houston", "Michigan St", "Gonzaga", "Illinois", "St. Johns", "Wisconsin", "VCU", "Akron"]}, {"name": "Reeder 3", "picks": ["Purdue", "Houston", "Virginia", "Arkansas", "St. Johns", "BYU", "Tennessee", "Akron"]}, {"name": "Rick Tuley #1", "picks": ["Arizona", "Iowa St.", "Michigan St", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "Miami"]}, {"name": "Riley Shock #1", "picks": ["Florida", "Michigan St", "Illinois", "Arkansas", "St. Johns", "Tennessee", "Texas", "Akron"]}, {"name": "Riley Shock #2", "picks": ["Duke", "Michigan", "Purdue", "Houston", "Wisconsin", "Vanderbilt", "UCLA", "Santa Clara"]}, {"name": "Rob Koteff", "picks": ["Michigan St", "Illinois", "Nebraska", "St. Johns", "Wisconsin", "BYU", "Miami OH", "Akron"]}, {"name": "Ron Larson", "picks": ["Iowa St.", "Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "UCLA", "Miami"]}, {"name": "RubyKT", "picks": ["Arizona", "Iowa St.", "Houston", "Vanderbilt", "UCLA", "Utah St", "Santa Clara", "South Florida"]}, {"name": "Ryan Cohee #1", "picks": ["Houston", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "UCLA", "VCU", "Akron"]}, {"name": "Ryan Cohee #2", "picks": ["Iowa St.", "Illinois", "Arkansas", "Vanderbilt", "UCLA", "Texas", "VCU", "Northern Iowa"]}, {"name": "Ryan Winger #1", "picks": ["Purdue", "Arkansas", "St. Johns", "Vanderbilt", "Louisville", "Tennessee", "Texas AM", "VCU"]}, {"name": "Ryan Winger #2", "picks": ["Iowa St.", "Houston", "Kansas", "Arkansas", "Vanderbilt", "Tennessee", "South Florida", "Texas"]}, {"name": "S Barton 1 - AJ Coug!", "picks": ["Duke", "Arizona", "Iowa St.", "Houston", "Nebraska", "Texas Tech", "BYU", "UCF"]}, {"name": "S Barton 2 - All BIG12", "picks": ["Arizona", "Iowa St.", "Houston", "Kansas", "Texas Tech", "BYU", "TCU", "UCF"]}, {"name": "S Barton 3 - Upsets", "picks": ["Michigan St", "St. Johns", "Vanderbilt", "North Carolina", "St. Marys", "Utah St", "UCF", "Santa Clara"]}, {"name": "S Barton 4 - Blue & White", "picks": ["Arizona", "Houston", "Gonzaga", "Virginia", "Nebraska", "Texas Tech", "TCU", "South Florida"]}, {"name": "Sara thompson", "picks": ["Michigan St", "Wisconsin", "UCLA", "Miami", "Villinova", "St. Louis", "Santa Clara", "Northern Iowa"]}, {"name": "Sara thompson", "picks": ["Duke", "Wisconsin", "UCLA", "Miami", "Villinova", "St. Louis", "Santa Clara", "Northern Iowa"]}, {"name": "Sarah Jahnke", "picks": ["Gonzaga", "Kansas", "St. Johns", "Louisville", "Villinova", "St. Louis", "Miami OH", "Wright St"]}, {"name": "Scott Schneider", "picks": ["Michigan", "Florida", "Purdue", "Arkansas", "St. Johns", "Tennessee", "Utah St", "North Dakota St"]}, {"name": "Sean Conrad", "picks": ["Michigan St", "Gonzaga", "Illinois", "St. Johns", "Texas Tech", "Tennessee", "UCLA", "VCU"]}, {"name": "Sean Conrad #2", "picks": ["Duke", "Michigan St", "Texas Tech", "Vanderbilt", "Tennessee", "Kentucky", "Iowa", "Missouri"]}, {"name": "Shawn Thompson", "picks": ["Duke", "Arizona", "Iowa St.", "Houston", "Virginia", "Arkansas", "Vanderbilt", "Miami"]}, {"name": "SMOOTY", "picks": ["Michigan St", "Gonzaga", "Virginia", "Kansas", "Arkansas", "Alabama", "Nebraska", "VCU"]}, {"name": "Stacie hayne #2", "picks": ["Michigan", "UCONN", "Illinois", "Arkansas", "Wisconsin", "St. Marys", "VCU", "Akron"]}, {"name": "Staciehayne#1", "picks": ["UCONN", "Gonzaga", "Illinois", "Wisconsin", "St. Marys", "VCU", "Akron", "McNeese St"]}, {"name": "Stacy Guthrie", "picks": ["Gonzaga", "Illinois", "St. Johns", "BYU", "Tennessee", "Clemson", "South Florida", "Akron"]}, {"name": "Stephen Brazil", "picks": ["Michigan", "Iowa St.", "Kansas", "Vanderbilt", "North Carolina", "Villinova", "South Florida", "Texas"]}, {"name": "Steve Barlow", "picks": ["Illinois", "Alabama", "St. Johns", "BYU", "South Florida", "Texas", "High Point", "Akron"]}, {"name": "Steve Boyle #1", "picks": ["UCONN", "Houston", "Gonzaga", "Illinois", "Kansas", "Texas Tech", "Vanderbilt", "BYU"]}, {"name": "Steve Boyle #2", "picks": ["Duke", "UCONN", "Gonzaga", "Virginia", "Nebraska", "Wisconsin", "Texas Tech", "BYU"]}, {"name": "Sto Adams #1", "picks": ["Duke", "Arizona", "Houston", "St. Johns", "Tennessee", "St. Marys", "Miami OH", "Akron"]}, {"name": "Sto Adams #2", "picks": ["Duke", "Iowa St.", "Houston", "Gonzaga", "Vanderbilt", "VCU", "Northern Iowa", "High Point"]}, {"name": "Sto Adams #3", "picks": ["Duke", "Arizona", "Florida", "UCONN", "Houston", "Michigan St", "Gonzaga", "St. Johns"]}, {"name": "Stormin Norman", "picks": ["Arkansas", "St. Johns", "BYU", "UCLA", "St. Marys", "Clemson", "Santa Clara", "Akron"]}, {"name": "Stuart Rosenthal", "picks": ["Duke", "Florida", "Purdue", "Iowa St.", "St. Johns", "Utah St", "VCU", "Troy"]}, {"name": "Susan oakes", "picks": ["Michigan St", "Illinois", "Alabama", "Nebraska", "Wisconsin", "Ohio St", "Missouri", "Miami OH"]}, {"name": "Susan Wright", "picks": ["Duke", "Virginia", "Vanderbilt", "Louisville", "North Carolina", "Miami", "Villinova", "UGA"]}, {"name": "T Hutch", "picks": ["Kansas", "Nebraska", "St. Johns", "Wisconsin", "North Carolina", "Villinova", "Santa Clara", "North Dakota St"]}, {"name": "T Hutch # 2", "picks": ["Kansas", "Wisconsin", "Texas Tech", "Vanderbilt", "Louisville", "North Carolina", "UCF", "Santa Clara"]}, {"name": "T Hutch #3", "picks": ["Michigan St", "Louisville", "BYU", "North Carolina", "Ohio St", "Northern Iowa", "High Point", "McNeese St"]}, {"name": "Tammy Henson", "picks": ["Missouri", "Santa Clara", "Texas AM", "South Florida", "Northern Iowa", "Hawaii", "Penn", "Tennessee St"]}, {"name": "Terry Hayden #1", "picks": ["Duke", "Florida", "Purdue", "Houston", "Gonzaga", "Arkansas", "St. Johns", "Ohio St"]}, {"name": "Terry Phelan #1", "picks": ["Michigan", "Purdue", "Iowa St.", "Gonzaga", "Kansas", "Vanderbilt", "Miami", "Miami OH"]}, {"name": "TheJones #2", "picks": ["Michigan St", "Virginia", "Illinois", "Arkansas", "St. Johns", "Texas Tech", "Vanderbilt", "Texas"]}, {"name": "Tim Barrett", "picks": ["Duke", "Michigan", "Florida", "Purdue", "Houston", "Texas Tech", "UCLA", "Texas"]}, {"name": "Tim Cuddeback", "picks": ["Duke", "Gonzaga", "Vanderbilt", "North Carolina", "St. Marys", "St. Louis", "VCU", "Troy"]}, {"name": "Todd Jacobs", "picks": ["Gonzaga", "Alabama", "St. Johns", "Louisville", "BYU", "St. Marys", "St. Louis", "Miami OH"]}, {"name": "Todd Sagmoe 1", "picks": ["Michigan", "Michigan St", "Virginia", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "BYU"]}, {"name": "Todd Sagmoe 2", "picks": ["Duke", "Arizona", "Michigan", "Florida", "UCF", "Missouri", "Santa Clara", "VCU"]}, {"name": "Todd Sagmoe 3", "picks": ["Michigan", "Iowa St.", "Houston", "Michigan St", "Gonzaga", "Kansas", "Arkansas", "Nebraska"]}, {"name": "Tom Thomas", "picks": ["Florida", "Michigan St", "Wisconsin", "Louisville", "North Carolina", "Kentucky", "UCF", "Texas"]}, {"name": "Tony Sherman #1", "picks": ["UCONN", "Purdue", "Houston", "Gonzaga", "Virginia", "Illinois", "St. Johns", "Wisconsin"]}, {"name": "Tony Sherman #2", "picks": ["UCONN", "Purdue", "Michigan St", "Virginia", "Illinois", "Alabama", "St. Johns", "Wisconsin"]}, {"name": "Travis Freytag", "picks": ["Duke", "Houston", "Illinois", "Arkansas", "St. Johns", "BYU", "Tennessee", "South Florida"]}, {"name": "Trey averill", "picks": ["Arkansas", "St. Johns", "Wisconsin", "BYU", "UCLA", "Clemson", "UCF", "Miami OH"]}, {"name": "Trey Davis", "picks": ["Duke", "Michigan", "Florida", "Iowa St.", "Houston", "Arkansas", "BYU", "VCU"]}, {"name": "Tristan Huebsch", "picks": ["Houston", "Arkansas", "Texas Tech", "Vanderbilt", "Louisville", "BYU", "Tennessee", "North Carolina"]}, {"name": "Tristan Huebsch #2", "picks": ["Alabama", "Wisconsin", "Vanderbilt", "North Carolina", "Missouri", "Santa Clara", "South Florida", "Northern Iowa"]}, {"name": "Troy Delano", "picks": ["Michigan St", "Arkansas", "St. Johns", "Vanderbilt", "Tennessee", "UCF", "Texas", "VCU"]}, {"name": "Troy Delano #2", "picks": ["Arizona", "Michigan St", "Kansas", "Texas Tech", "Vanderbilt", "Tennessee", "Missouri", "VCU"]}, {"name": "Tyler Bilek", "picks": ["Michigan", "Illinois", "Arkansas", "St. Johns", "Vanderbilt", "Tennessee", "UCLA", "VCU"]}, {"name": "Tyler Bilek #2", "picks": ["Florida", "Iowa St.", "Michigan St", "Virginia", "Arkansas", "Kentucky", "South Florida", "Texas"]}, {"name": "Tyler Bilek #3", "picks": ["Duke", "Purdue", "Wisconsin", "Texas Tech", "Vanderbilt", "St. Marys", "Miami OH", "VCU"]}, {"name": "Tyler Mulcahy #1", "picks": ["St. Johns", "UCLA", "Missouri", "Texas AM", "South Florida", "VCU", "High Point", "Akron"]}, {"name": "Vince Maria", "picks": ["Arizona", "Iowa St.", "Houston", "Virginia", "St. Johns", "Tennessee", "TCU", "High Point"]}, {"name": "william ciancanelli #1", "picks": ["Duke", "Arizona", "Michigan", "Michigan St", "Illinois", "Santa Clara", "Texas", "VCU"]}, {"name": "william ciancanelli #2", "picks": ["Michigan St", "Illinois", "Wisconsin", "Vanderbilt", "Tennessee", "Santa Clara", "Texas", "Akron"]}, {"name": "William Conrad", "picks": ["Duke", "Florida", "Gonzaga", "Illinois", "Arkansas", "Wisconsin", "Tennessee", "Missouri"]}, {"name": "willie cardenas # 1", "picks": ["Arizona", "Purdue", "Gonzaga", "Illinois", "BYU", "UCLA", "Hofstra", "UMBC/Howard"]}, {"name": "Zach Cherry #1", "picks": ["Purdue", "Iowa St.", "Arkansas", "St. Johns", "Vanderbilt", "BYU", "Tennessee", "UCLA"]}, {"name": "Zach Cherry #2", "picks": ["Michigan St", "Gonzaga", "Illinois", "Alabama", "Wisconsin", "Vanderbilt", "Tennessee", "Ohio St"]}, {"name": "Zach Cherry #3", "picks": ["Arkansas", "Vanderbilt", "BYU", "Tennessee", "North Carolina", "UCLA", "Texas AM", "Akron"]}, {"name": "Zach Cherry #4", "picks": ["Purdue", "Iowa St.", "Illinois", "Arkansas", "Vanderbilt", "BYU", "Tennessee", "Akron"]}, {"name": "Zoe Martin", "picks": ["Michigan St", "Gonzaga", "Virginia", "Illinois", "Arkansas", "Alabama", "St. Johns", "Vanderbilt"]}, {"name": "Zoe Sherman", "picks": ["Florida", "Michigan St", "Wisconsin", "Louisville", "UCLA", "Villinova", "TCU", "Northern Iowa"]}, {"name": "Zoe Sherman #2", "picks": ["Duke", "Michigan St", "Illinois", "Arkansas", "St. Johns", "North Carolina", "UGA", "South Florida"]}];
+
+// ============================================================
+//  COMPLETED GAME RESULTS - EDIT THIS SECTION DAILY!
+//  ---------------------------------------------------
+//  After each day's games are final, update this object.
+//  Use team names EXACTLY as they appear in TEAM_SEEDS above.
+//  wins: array of round numbers the team won
+//    Round 1 = Round of 64
+//    Round 2 = Round of 32
+//    Round 3 = Sweet 16
+//    Round 4 = Elite 8
+//    Round 5 = Final Four
+//    Round 6 = Championship
+//  eliminated: true if the team has lost
+//
+//  Example: If Duke (1 seed) beat Siena in Round 1 and then
+//  lost in Round 2, you would write:
+//    "Duke": { wins: [1], eliminated: true },
+// ============================================================
+const COMPLETED_RESULTS = {
+  // =============================================
+  // Day 1 Results (March 19) - Round of 64
+  // =============================================
+  // WINNERS
+  "Duke":           { wins: [1], eliminated: false },
+  "Michigan":       { wins: [1], eliminated: false },
+  "Houston":        { wins: [1], eliminated: false },
+  "Michigan St":    { wins: [1], eliminated: false },
+  "Illinois":       { wins: [1], eliminated: false },
+  "Gonzaga":        { wins: [1], eliminated: false },
+  "Nebraska":       { wins: [1], eliminated: false },
+  "Arkansas":       { wins: [1], eliminated: false },
+  "Vanderbilt":     { wins: [1], eliminated: false },
+  "High Point":     { wins: [1], eliminated: false },
+  "Louisville":     { wins: [1], eliminated: false },
+  "VCU":            { wins: [1], eliminated: false },
+  "Texas":          { wins: [1], eliminated: false },
+  "Texas AM":       { wins: [1], eliminated: false },
+  "TCU":            { wins: [1], eliminated: false },
+  "St. Louis":      { wins: [1], eliminated: false },
+  // LOSERS
+  "Siena":          { wins: [], eliminated: true },
+  "UMBC/Howard":    { wins: [], eliminated: true },
+  "Idaho":          { wins: [], eliminated: true },
+  "North Dakota St":{ wins: [], eliminated: true },
+  "Penn":           { wins: [], eliminated: true },
+  "Kenessaw St":    { wins: [], eliminated: true },
+  "Troy":           { wins: [], eliminated: true },
+  "Hawaii":         { wins: [], eliminated: true },
+  "McNeese St":     { wins: [], eliminated: true },
+  "Wisconsin":      { wins: [], eliminated: true },
+  "South Florida":  { wins: [], eliminated: true },
+  "North Carolina": { wins: [], eliminated: true },
+  "BYU":            { wins: [], eliminated: true },
+  "St. Marys":      { wins: [], eliminated: true },
+  "Ohio St":        { wins: [], eliminated: true },
+  "UGA":            { wins: [], eliminated: true },
+
+  // =============================================
+  // Day 2 Results (March 20) - Round of 64
+  // UPDATE AFTER TODAY'S GAMES ARE FINAL
+  // =============================================
+  // "Kentucky":       { wins: [1], eliminated: false },
+  // "Santa Clara":    { wins: [], eliminated: true },
+  // ... add more as games complete
+};
+
+// ============================================================
+//  ESPN NAME MAP - Maps ESPN shortDisplayName to spreadsheet names
+//  Only needed for names that differ between ESPN and our spreadsheet
+// ============================================================
+const ESPN_NAME_MAP = {
+  "N Dakota St": "North Dakota St",
+  "Howard": "UMBC/Howard",
+  "UConn": "UCONN",
+  "Iowa State": "Iowa St.",
+  "Wright State": "Wright St",
+  "Tennessee State": "Tennessee St",
+  "Ohio State": "Ohio St",
+  "Michigan State": "Michigan St",
+  "North Dakota State": "North Dakota St",
+  "McNeese": "McNeese St",
+  "Saint Mary's": "St. Marys",
+  "St. Mary's": "St. Marys",
+  "Saint Louis": "St. Louis",
+  "Texas A&M": "Texas AM",
+  "Georgia": "UGA",
+  "Villanova": "Villinova",
+  "Cal Baptist": "Cal Baptist",
+  "Long Island": "LIU",
+  "St. John's": "St. Johns",
+  "St John's": "St. Johns",
+  "North Carolina": "North Carolina",
+  "PVAMU": "PVAM / Lehigh",
+  "Lehigh": "PVAM / Lehigh",
+  "Kennesaw St": "Kenessaw St",
+  "Kennesaw State": "Kenessaw St",
+  "LIU": "LIU",
+  "Utah State": "Utah St",
+  "Prairie View": "PVAM / Lehigh",
+  "CA Baptist": "Cal Baptist",
+  "Prairie View A&M": "PVAM / Lehigh",
+  "Hawai'i": "Hawaii",
+  "Saint Louis": "St. Louis",
+};
+
+// ============================================================
+//  TOURNAMENT CONFIG
+// ============================================================
+const TOURNAMENT_DATES = [
+  "20260319", "20260320", // Round of 64
+  "20260321", "20260322", // Round of 32
+  "20260326", "20260327", // Sweet 16
+  "20260328", "20260329", // Elite 8
+  "20260404",             // Final Four
+  "20260406",             // Championship
+];
+
+const ROUND_NAMES = {
+  1: "Round of 64", 2: "Round of 32", 3: "Sweet 16",
+  4: "Elite 8", 5: "Final Four", 6: "Championship"
+};
+
+const PAYOUTS = {
+  1: 811, 2: 608, 3: 439, 4: 338, 5: 237,
+  6: 169, 7: 135, 8: 135, 9: 101, 10: 101,
+  11: 76, 12: 63, 13: 63, 14: 51, 15: 51
+};
+
+const REFRESH_INTERVAL = 30; // seconds
+
+// ============================================================
+//  STATE
+// ============================================================
+let teamState = {};
+let leaderboard = [];
+let previousRanks = {};
+let liveGames = [];
+let countdown = REFRESH_INTERVAL;
+let searchTerm = "";
+
+// ============================================================
+//  INITIALIZATION
+// ============================================================
+async function initialize() {
+  updateLoadingText("Loading team data...");
+
+  // Initialize team state from TEAM_SEEDS
+  for (const [name, seed] of Object.entries(TEAM_SEEDS)) {
+    teamState[name] = {
+      seed,
+      wins: [],
+      eliminated: false,
+      liveGame: null
+    };
+  }
+
+  // Apply completed results
+  updateLoadingText("Applying completed results...");
+  for (const [team, result] of Object.entries(COMPLETED_RESULTS)) {
+    if (teamState[team]) {
+      teamState[team].wins = result.wins || [];
+      teamState[team].eliminated = result.eliminated || false;
+    }
+  }
+
+  // Fetch today's live games
+  updateLoadingText("Checking for live games...");
+  await fetchLiveGames();
+
+  // Calculate and render
+  updateLoadingText("Calculating scores...");
+  calculateAllScores();
+  renderAll();
+
+  // Hide loading overlay
+  setTimeout(() => {
+    document.getElementById("loadingOverlay").classList.add("hidden");
+  }, 800);
+
+  // Start refresh cycle
+  startRefreshCycle();
+}
+
+function updateLoadingText(text) {
+  document.getElementById("loadingText").textContent = text;
+}
+
+// ============================================================
+//  ESPN API
+// ============================================================
+function normalizeTeamName(espnName) {
+  if (ESPN_NAME_MAP[espnName]) return ESPN_NAME_MAP[espnName];
+  // Try direct match
+  if (TEAM_SEEDS[espnName] !== undefined) return espnName;
+  // Try case-insensitive
+  for (const name of Object.keys(TEAM_SEEDS)) {
+    if (name.toLowerCase() === espnName.toLowerCase()) return name;
+  }
+  return espnName;
+}
+
+function getRoundNumber(event) {
+  const headline = (event.competitions && event.competitions[0] &&
+    event.competitions[0].notes && event.competitions[0].notes[0] &&
+    event.competitions[0].notes[0].headline) || event.name || "";
+  if (headline.includes("1st Round")) return 1;
+  if (headline.includes("2nd Round")) return 2;
+  if (headline.includes("Sweet 16")) return 3;
+  if (headline.includes("Elite 8") || headline.includes("Elite Eight")) return 4;
+  if (headline.includes("Final Four")) return 5;
+  if (headline.includes("Championship") || headline.includes("National")) return 6;
+  // Fallback: check date
+  return 0;
+}
+
+async function fetchLiveGames() {
+  const today = new Date();
+  const dateStr = today.getFullYear().toString() +
+    String(today.getMonth() + 1).padStart(2, "0") +
+    String(today.getDate()).padStart(2, "0");
+
+  // Clear live game state
+  for (const team of Object.values(teamState)) {
+    team.liveGame = null;
+  }
+  liveGames = [];
+
+  try {
+    const resp = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${dateStr}&groups=100`
+    );
+    const data = await resp.json();
+
+    if (!data.events) return;
+
+    for (const event of data.events) {
+      const round = getRoundNumber(event);
+      if (round === 0) continue;
+
+      const comp = event.competitions[0];
+      const statusState = comp.status.type.state;
+      const competitors = comp.competitors;
+
+      const t1name = normalizeTeamName(competitors[0].team.shortDisplayName);
+      const t2name = normalizeTeamName(competitors[1].team.shortDisplayName);
+      const t1score = parseInt(competitors[0].score) || 0;
+      const t2score = parseInt(competitors[1].score) || 0;
+      const t1seed = competitors[0].curatedRank ? competitors[0].curatedRank.current : 0;
+      const t2seed = competitors[1].curatedRank ? competitors[1].curatedRank.current : 0;
+
+      const gameInfo = {
+        team1: t1name, team1Score: t1score, team1Seed: t1seed,
+        team2: t2name, team2Score: t2score, team2Seed: t2seed,
+        round, status: statusState,
+        statusText: comp.status.type.shortDetail || comp.status.type.description || "",
+        completed: comp.status.type.completed || false
+      };
+      liveGames.push(gameInfo);
+
+      if (statusState === "in") {
+        // Live game
+        if (t1score > t2score) {
+          if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: true, score: t1score, oppScore: t2score };
+          if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: false, score: t2score, oppScore: t1score };
+        } else if (t2score > t1score) {
+          if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: true, score: t2score, oppScore: t1score };
+          if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: false, score: t1score, oppScore: t2score };
+        } else {
+          // Tied
+          if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: false, tied: true };
+          if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: false, tied: true };
+        }
+      } else if (statusState === "post" && gameInfo.completed) {
+        // Completed today - check if already in COMPLETED_RESULTS
+        const winner = competitors[0].winner ? t1name : t2name;
+        const loser = competitors[0].winner ? t2name : t1name;
+        // Only apply if not already recorded
+        if (teamState[winner] && !teamState[winner].wins.includes(round)) {
+          teamState[winner].wins.push(round);
+        }
+        if (teamState[loser] && !teamState[loser].eliminated) {
+          teamState[loser].eliminated = true;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to fetch live scores:", e);
+  }
+}
+
+// ============================================================
+//  SCORING
+// ============================================================
+function calculateScore(entry) {
+  let confirmed = 0;
+  let provisional = 0;
+  let teamsAlive = 0;
+  let teamsEliminated = 0;
+  let teamsPlaying = 0;
+  let maxPossible = 0;
+  let pickDetails = [];
+
+  for (const teamName of entry.picks) {
+    const team = teamState[teamName];
+    const seed = TEAM_SEEDS[teamName];
+    if (!team || seed === undefined) {
+      pickDetails.push({ team: teamName, seed: "?", pts: 0, status: "unknown", wins: [], liveGame: null });
+      continue;
+    }
+
+    let pts = 0;
+    for (const r of team.wins) {
+      pts += seed * r;
+    }
+    confirmed += pts;
+
+    let provPts = 0;
+    if (team.liveGame && team.liveGame.winning) {
+      provPts = seed * team.liveGame.round;
+      provisional += provPts;
+      teamsPlaying++;
+    } else if (team.liveGame) {
+      teamsPlaying++;
+    }
+
+    if (team.eliminated) {
+      teamsEliminated++;
+    } else {
+      teamsAlive++;
+    }
+
+    // Max possible
+    let mp = pts;
+    if (!team.eliminated) {
+      const maxWon = team.wins.length > 0 ? Math.max(...team.wins) : 0;
+      const nextRound = team.liveGame ? team.liveGame.round : maxWon + 1;
+      for (let r = nextRound; r <= 6; r++) {
+        mp += seed * r;
+      }
+    }
+    maxPossible += mp;
+
+    pickDetails.push({
+      team: teamName, seed, pts, provPts, status: team.eliminated ? "eliminated" : "alive",
+      wins: [...team.wins], liveGame: team.liveGame
+    });
+  }
+
+  return { confirmed, provisional, total: confirmed + provisional, maxPossible, teamsAlive, teamsEliminated, teamsPlaying, pickDetails };
+}
+
+function calculateAllScores() {
+  // Save previous ranks
+  previousRanks = {};
+  for (const entry of leaderboard) {
+    previousRanks[entry.name] = entry.rank;
+  }
+
+  leaderboard = ENTRIES.map(entry => {
+    const score = calculateScore(entry);
+    return { ...entry, ...score };
+  });
+
+  // Sort by total desc, then confirmed desc, then maxPossible desc
+  leaderboard.sort((a, b) => b.total - a.total || b.confirmed - a.confirmed || b.maxPossible - a.maxPossible);
+
+  // Assign ranks (handle ties)
+  let rank = 1;
+  for (let i = 0; i < leaderboard.length; i++) {
+    if (i > 0 && leaderboard[i].total === leaderboard[i - 1].total &&
+        leaderboard[i].confirmed === leaderboard[i - 1].confirmed) {
+      leaderboard[i].rank = leaderboard[i - 1].rank;
+    } else {
+      leaderboard[i].rank = rank;
+    }
+    rank++;
+
+    // Movement
+    const prev = previousRanks[leaderboard[i].name];
+    leaderboard[i].movement = prev ? prev - leaderboard[i].rank : 0;
+  }
+}
+
+// ============================================================
+//  RENDERING
+// ============================================================
+const GROUPS = [
+  { id: "leaders", title: "The Leaders", icon: "\u{1F3C6}", range: [1, 10], color: "var(--gold)" },
+  { id: "chase1", title: "Chase Group 1", icon: "\u{1F3C3}", range: [11, 50], color: "var(--silver)" },
+  { id: "chase2", title: "Chase Group 2", icon: "\u{1F6B4}", range: [51, 100], color: "var(--bronze)" },
+  { id: "pack", title: "Behind the Pack", icon: "\u{1F3C0}", range: [101, 999], color: "var(--slate)", collapsed: true },
+];
+
+function renderAll() {
+  renderRaceTrack();
+  renderTicker();
+  renderTeamStatus();
+  renderGameLog();
+  updateStats();
+}
+
+function renderRaceTrack() {
+  const track = document.getElementById("raceTrack");
+  const firstPositions = new Map();
+
+  // FLIP: capture current positions
+  const existingCards = track.querySelectorAll(".player-card");
+  existingCards.forEach(card => {
+    const rect = card.getBoundingClientRect();
+    firstPositions.set(card.dataset.name, { top: rect.top, left: rect.left });
+  });
+
+  const isRerender = existingCards.length > 0;
+
+  let html = "";
+  for (const group of GROUPS) {
+    const entries = leaderboard.filter(e => {
+      const displayRank = e.rank;
+      return displayRank >= group.range[0] && displayRank <= group.range[1];
+    });
+
+    const collapsed = group.collapsed && !searchTerm ? "collapsed" : "";
+    html += `<section class="peloton ${collapsed}" data-group="${group.id}" style="--group-color:${group.color}">
+      <div class="peloton-header" onclick="toggleGroup('${group.id}')">
+        <h2 class="peloton-title">${group.icon} ${group.title}</h2>
+        <span class="peloton-range">${entries.length} entries</span>
+        <span class="peloton-toggle">\u25BC</span>
+      </div>
+      <div class="peloton-body">`;
+
+    for (const entry of entries) {
+      const movClass = entry.movement > 0 ? "moving-up" : entry.movement < 0 ? "moving-down" : "";
+      const movIcon = entry.movement > 0 ? "\u25B2" : entry.movement < 0 ? "\u25BC" : "\u2014";
+      const movText = entry.movement !== 0 ? Math.abs(entry.movement) : "";
+      const movColor = entry.movement > 0 ? "up" : entry.movement < 0 ? "down" : "same";
+      const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : "";
+      const dimmed = searchTerm && !entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ? "dimmed" : "";
+      const highlighted = searchTerm && entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ? "highlighted" : "";
+      const payout = PAYOUTS[entry.rank] ? `<span class="payout-badge">$${PAYOUTS[entry.rank]}</span>` : "";
+
+      // Best performing teams
+      const topTeams = entry.pickDetails
+        .filter(p => p.pts > 0)
+        .sort((a, b) => b.pts - a.pts)
+        .slice(0, 3)
+        .map(p => p.team)
+        .join(", ");
+
+      // Alive bar
+      let aliveBar = entry.pickDetails.map(p => {
+        if (p.liveGame) return '<span class="playing"></span>';
+        if (p.status === "eliminated") return '<span class="eliminated"></span>';
+        return '<span class="alive"></span>';
+      }).join("");
+
+      html += `<div class="player-card ${movClass} ${rankClass} ${dimmed} ${highlighted}"
+        data-name="${entry.name}" onclick="showModal('${entry.name.replace(/'/g, "\\'")}')">
+        <div class="rank-badge">${entry.rank}</div>
+        <div class="movement ${movColor}">${movIcon}${movText}</div>
+        <div class="player-info">
+          <div class="player-name">${entry.name}</div>
+          <div class="player-teams">${topTeams || "No wins yet"}</div>
+        </div>
+        <div class="score-display">
+          ${entry.total}${entry.provisional > 0 ? `<div class="score-provisional">+${entry.provisional}</div>` : ""}
+        </div>
+        <div class="alive-bar">${aliveBar}</div>
+        ${payout}
+      </div>`;
+    }
+
+    html += `</div></section>`;
+  }
+
+  track.innerHTML = html;
+
+  // FLIP: animate if this is a rerender
+  if (isRerender) {
+    const newCards = track.querySelectorAll(".player-card");
+    newCards.forEach(card => {
+      const name = card.dataset.name;
+      const first = firstPositions.get(name);
+      if (!first) return;
+      const last = card.getBoundingClientRect();
+      const deltaY = first.top - last.top;
+      if (Math.abs(deltaY) < 2) return;
+
+      card.style.transform = `translateY(${deltaY}px)`;
+      card.style.transition = "none";
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          card.style.transition = "transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+          card.style.transform = "";
+          if (Math.abs(deltaY) > 150) card.classList.add("big-mover");
+        });
+      });
+      setTimeout(() => card.classList.remove("big-mover"), 1500);
+    });
+  }
+}
+
+function renderTicker() {
+  const bar = document.getElementById("tickerBar");
+  const track = document.getElementById("tickerTrack");
+
+  if (liveGames.length === 0) {
+    bar.style.display = "none";
+    return;
+  }
+
+  bar.style.display = "block";
+  let html = "";
+  // Duplicate for seamless loop
+  for (let dup = 0; dup < 2; dup++) {
+    for (const game of liveGames) {
+      const statusBadge = game.status === "in"
+        ? `<span class="live-badge">LIVE ${game.statusText}</span>`
+        : `<span class="final-badge">${game.statusText}</span>`;
+      html += `<div class="ticker-game">
+        <span class="seed">(${game.team1Seed})</span> ${game.team1} <span class="score">${game.team1Score}</span>
+        - <span class="score">${game.team2Score}</span> ${game.team2} <span class="seed">(${game.team2Seed})</span>
+        ${statusBadge}
+      </div>`;
+    }
+  }
+  track.innerHTML = html;
+}
+
+function renderTeamStatus() {
+  const list = document.getElementById("teamStatusList");
+  const teams = Object.entries(TEAM_SEEDS)
+    .map(([name, seed]) => {
+      const state = teamState[name];
+      let pts = 0;
+      for (const r of (state ? state.wins : [])) {
+        pts += seed * r;
+      }
+      return { name, seed, pts, eliminated: state ? state.eliminated : false, alive: state ? !state.eliminated : true };
+    })
+    .sort((a, b) => b.pts - a.pts || a.seed - b.seed);
+
+  list.innerHTML = teams.map(t => `
+    <div class="team-status-item ${t.eliminated ? 'elim' : ''}">
+      <span class="team-seed-badge">${t.seed}</span>
+      <span>${t.name}</span>
+      <span class="team-pts">${t.pts > 0 ? t.pts + ' pts' : ''}</span>
+    </div>
+  `).join("");
+}
+
+function renderGameLog() {
+  const log = document.getElementById("gameLog");
+  const games = [];
+
+  // Build game log from completed results
+  for (const [team, state] of Object.entries(teamState)) {
+    if (state.eliminated) {
+      const maxRound = state.wins.length > 0 ? Math.max(...state.wins) + 1 : 1;
+      games.push({
+        team, seed: TEAM_SEEDS[team], round: maxRound, result: "lost",
+        roundName: ROUND_NAMES[maxRound] || `Round ${maxRound}`
+      });
+    }
+    for (const r of state.wins) {
+      games.push({
+        team, seed: TEAM_SEEDS[team], round: r, result: "won",
+        roundName: ROUND_NAMES[r] || `Round ${r}`
+      });
+    }
+  }
+
+  games.sort((a, b) => a.round - b.round || a.team.localeCompare(b.team));
+
+  log.innerHTML = games.map(g => `
+    <div class="game-log-item">
+      <span class="round-badge">R${g.round}</span>
+      <span class="${g.result === 'won' ? 'winner' : ''}">(${g.seed}) ${g.team}</span>
+      ${g.result === 'won' ? ' W' : ' L'}
+    </div>
+  `).join("");
+}
+
+function updateStats() {
+  const alive = Object.values(teamState).filter(t => !t.eliminated).length;
+  const liveCount = liveGames.filter(g => g.status === "in").length;
+  const maxRound = Math.max(0, ...Object.values(teamState).flatMap(t => t.wins));
+  const currentRound = maxRound > 0 ? ROUND_NAMES[maxRound] || `Round ${maxRound}` : "Pre-Tournament";
+
+  document.getElementById("teamsAlive").textContent = alive;
+  document.getElementById("currentRound").textContent = currentRound;
+
+  const liveInd = document.getElementById("liveIndicator");
+  if (liveCount > 0) {
+    liveInd.style.display = "";
+    document.getElementById("liveGameCount").textContent = liveCount;
+  } else {
+    liveInd.style.display = "none";
+  }
+}
+
+// ============================================================
+//  MODAL
+// ============================================================
+function showModal(name) {
+  const entry = leaderboard.find(e => e.name === name);
+  if (!entry) return;
+
+  const modal = document.getElementById("modal");
+  const content = document.getElementById("modalContent");
+
+  let picksHtml = entry.pickDetails
+    .sort((a, b) => b.pts - a.pts)
+    .map(p => {
+      const elimClass = p.status === "eliminated" ? "elim" : "";
+      let roundPills = "";
+      for (let r = 1; r <= 6; r++) {
+        if (p.wins.includes(r)) {
+          roundPills += `<span class="round-pill win">W</span>`;
+        } else if (p.liveGame && p.liveGame.round === r) {
+          roundPills += `<span class="round-pill live">${p.liveGame.winning ? "W?" : "L?"}</span>`;
+        } else if (p.status === "eliminated" && r > Math.max(0, ...p.wins)) {
+          roundPills += `<span class="round-pill loss">L</span>`;
+          break;
+        } else if (p.status === "eliminated") {
+          roundPills += `<span class="round-pill pending">-</span>`;
+        } else {
+          roundPills += `<span class="round-pill pending">-</span>`;
+        }
+      }
+      const totalPts = p.pts + (p.provPts || 0);
+      return `<div class="modal-pick ${elimClass}">
+        <div class="pick-seed">${p.seed}</div>
+        <div class="pick-team">${p.team}</div>
+        <div class="pick-rounds">${roundPills}</div>
+        <div class="pick-pts">${totalPts > 0 ? totalPts : ""}</div>
+      </div>`;
+    }).join("");
+
+  content.innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="modal-header">
+      <div class="modal-rank">#${entry.rank}</div>
+      <div>
+        <div class="modal-name">${entry.name}</div>
+        <div style="font-size:0.8rem;color:var(--muted)">
+          ${entry.teamsAlive}/8 alive ${entry.teamsPlaying > 0 ? ` | ${entry.teamsPlaying} playing now` : ""}
+        </div>
+      </div>
+      <div class="modal-score">${entry.total} pts</div>
+    </div>
+    <div>${picksHtml}</div>
+    <div class="modal-max-possible">
+      Max Possible: <strong>${entry.maxPossible} pts</strong>
+    </div>
+  `;
+
+  modal.classList.add("active");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("active");
+}
+
+document.getElementById("modal").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeModal();
+});
+
+// ============================================================
+//  SEARCH
+// ============================================================
+document.getElementById("searchInput").addEventListener("input", function(e) {
+  searchTerm = e.target.value.trim();
+  const cards = document.querySelectorAll(".player-card");
+  cards.forEach(card => {
+    const name = card.dataset.name || "";
+    if (!searchTerm) {
+      card.classList.remove("dimmed", "highlighted");
+    } else if (name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      card.classList.remove("dimmed");
+      card.classList.add("highlighted");
+    } else {
+      card.classList.add("dimmed");
+      card.classList.remove("highlighted");
+    }
+  });
+  // Expand collapsed groups if searching
+  if (searchTerm) {
+    document.querySelectorAll(".peloton.collapsed").forEach(p => p.classList.remove("collapsed"));
+  }
+});
+
+// ============================================================
+//  GROUP TOGGLE
+// ============================================================
+function toggleGroup(id) {
+  const section = document.querySelector(`.peloton[data-group="${id}"]`);
+  if (section) section.classList.toggle("collapsed");
+}
+
+// ============================================================
+//  REFRESH CYCLE
+// ============================================================
+function startRefreshCycle() {
+  countdown = REFRESH_INTERVAL;
+  setInterval(() => {
+    countdown--;
+    if (countdown < 0) countdown = 0;
+    document.getElementById("countdown").textContent = countdown;
+    document.getElementById("refreshBarFill").style.width =
+      ((REFRESH_INTERVAL - countdown) / REFRESH_INTERVAL * 100) + "%";
+
+    if (countdown <= 0) {
+      countdown = REFRESH_INTERVAL;
+      refreshScores();
+    }
+  }, 1000);
+}
+
+async function refreshScores() {
+  await fetchLiveGames();
+  calculateAllScores();
+  renderAll();
+}
+
+// ============================================================
+//  KICK IT OFF
+// ============================================================
+window.addEventListener("DOMContentLoaded", initialize);
+</script>
+
+</body>
+</html>
