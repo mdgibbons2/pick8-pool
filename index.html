@@ -461,14 +461,53 @@ body {
 }
 .round-pill.win { background: var(--green); color: #fff; }
 .round-pill.loss { background: var(--red); color: #fff; }
+.round-pill.out { background: transparent; color: var(--red); opacity: 0.5; font-size: 0.7rem; }
 .round-pill.pending { background: rgba(255,255,255,0.08); color: var(--muted); }
 .round-pill.live { background: var(--orange); color: #fff; animation: pulse-dot 1.5s infinite; }
 .modal-pick .pick-pts {
   min-width: 40px; text-align: right;
   font-weight: 800; color: var(--green);
 }
+.modal-rounds-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 10px; margin-bottom: 2px;
+  font-size: 0.6rem; color: var(--muted); text-transform: uppercase;
+}
+.modal-rounds-header .rh-spacer { min-width: 28px; }
+.modal-rounds-header .rh-team { flex-grow: 1; }
+.modal-rounds-header .rh-rounds { display: flex; gap: 4px; }
+.modal-rounds-header .rh-round {
+  width: 20px; text-align: center; font-weight: 700;
+}
+.modal-rounds-header .rh-pts { min-width: 40px; text-align: right; }
+/* Rank chart */
+.rank-chart {
+  margin-top: 16px; padding: 12px;
+  background: rgba(0,0,0,0.3); border-radius: 8px;
+}
+.rank-chart-title {
+  font-size: 0.75rem; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 8px;
+}
+.rank-chart svg { width: 100%; height: 100px; }
+.rank-chart .chart-label {
+  font-size: 9px; fill: var(--muted);
+}
+.rank-chart .chart-line {
+  fill: none; stroke: var(--orange); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.rank-chart .chart-dot {
+  fill: var(--orange); stroke: var(--bg-card); stroke-width: 2;
+}
+.rank-chart .chart-grid {
+  stroke: rgba(255,255,255,0.06); stroke-width: 1;
+}
+.rank-chart .chart-value {
+  font-size: 8px; fill: var(--white); font-weight: 700; text-anchor: middle;
+}
 .modal-max-possible {
-  margin-top: 16px; padding: 10px;
+  margin-top: 12px; padding: 10px;
   background: rgba(255,215,0,0.08); border-radius: 8px;
   font-size: 0.85rem; text-align: center;
 }
@@ -1328,6 +1367,69 @@ function updateStats() {
 // ============================================================
 //  MODAL
 // ============================================================
+function buildRankChart(entry, stored) {
+  // Data points: yesterday's rank and current rank
+  // Labels map to tournament progression
+  const points = [];
+  if (stored) {
+    points.push({ label: "Yesterday", rank: stored.rank, score: stored.score });
+  }
+  points.push({ label: "Now", rank: entry.rank, score: entry.total });
+
+  if (points.length < 2) {
+    return ""; // Need at least 2 points to draw a chart
+  }
+
+  const svgW = 440, svgH = 90;
+  const padL = 55, padR = 20, padT = 20, padB = 22;
+  const chartW = svgW - padL - padR;
+  const chartH = svgH - padT - padB;
+
+  // Y scale: rank (1 = top, 338 = bottom). Invert so #1 is at top.
+  const allRanks = points.map(p => p.rank);
+  const minRank = Math.max(1, Math.min(...allRanks) - 10);
+  const maxRank = Math.min(338, Math.max(...allRanks) + 10);
+  const yScale = (rank) => padT + ((rank - minRank) / (maxRank - minRank)) * chartH;
+  const xStep = chartW / (points.length - 1);
+
+  // Build path
+  const coords = points.map((p, i) => ({ x: padL + i * xStep, y: yScale(p.rank) }));
+  const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x},${c.y}`).join(" ");
+
+  // Direction arrow/color
+  const rankDiff = points[0].rank - points[points.length - 1].rank;
+  const lineColor = rankDiff > 0 ? "var(--green)" : rankDiff < 0 ? "var(--red)" : "var(--orange)";
+  const direction = rankDiff > 0 ? `\u25B2${rankDiff} places` : rankDiff < 0 ? `\u25BC${Math.abs(rankDiff)} places` : "No change";
+  const dirColor = rankDiff > 0 ? "var(--green)" : rankDiff < 0 ? "var(--red)" : "var(--muted)";
+
+  // Grid lines
+  const gridCount = 3;
+  let gridLines = "";
+  for (let i = 0; i <= gridCount; i++) {
+    const rank = Math.round(minRank + (i / gridCount) * (maxRank - minRank));
+    const y = yScale(rank);
+    gridLines += `<line x1="${padL}" y1="${y}" x2="${svgW - padR}" y2="${y}" class="chart-grid"/>`;
+    gridLines += `<text x="${padL - 6}" y="${y + 3}" class="chart-label" text-anchor="end">#${rank}</text>`;
+  }
+
+  // Points and labels
+  let dotsHtml = "";
+  coords.forEach((c, i) => {
+    dotsHtml += `<circle cx="${c.x}" cy="${c.y}" r="4" class="chart-dot" style="fill:${lineColor}"/>`;
+    dotsHtml += `<text x="${c.x}" y="${c.y - 8}" class="chart-value">#${points[i].rank}</text>`;
+    dotsHtml += `<text x="${c.x}" y="${svgH - 4}" class="chart-label" text-anchor="middle">${points[i].label}</text>`;
+  });
+
+  return `<div class="rank-chart">
+    <div class="rank-chart-title">Rank Trend <span style="float:right;color:${dirColor};font-weight:700">${direction}</span></div>
+    <svg viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="xMidYMid meet">
+      ${gridLines}
+      <path d="${pathD}" class="chart-line" style="stroke:${lineColor}"/>
+      ${dotsHtml}
+    </svg>
+  </div>`;
+}
+
 function showModal(name) {
   const entry = leaderboard.find(e => e.name === name);
   if (!entry) return;
@@ -1335,21 +1437,25 @@ function showModal(name) {
   const modal = document.getElementById("modal");
   const content = document.getElementById("modalContent");
 
+  const roundLabels = ["64","32","16","8","4","2"];
+
   let picksHtml = entry.pickDetails
     .sort((a, b) => b.pts - a.pts)
     .map(p => {
       const elimClass = p.status === "eliminated" ? "elim" : "";
+      const maxWin = p.wins.length > 0 ? Math.max(...p.wins) : 0;
+      // The round they lost in is one after their last win
+      const lostInRound = p.status === "eliminated" ? maxWin + 1 : 0;
       let roundPills = "";
       for (let r = 1; r <= 6; r++) {
         if (p.wins.includes(r)) {
           roundPills += `<span class="round-pill win">W</span>`;
         } else if (p.liveGame && p.liveGame.round === r) {
           roundPills += `<span class="round-pill live">${p.liveGame.winning ? "W?" : "L?"}</span>`;
-        } else if (p.status === "eliminated" && r > Math.max(0, ...p.wins)) {
+        } else if (p.status === "eliminated" && r === lostInRound) {
           roundPills += `<span class="round-pill loss">L</span>`;
-          break;
-        } else if (p.status === "eliminated") {
-          roundPills += `<span class="round-pill pending">-</span>`;
+        } else if (p.status === "eliminated" && r > lostInRound) {
+          roundPills += `<span class="round-pill out">\u2716</span>`;
         } else {
           roundPills += `<span class="round-pill pending">-</span>`;
         }
@@ -1363,6 +1469,19 @@ function showModal(name) {
       </div>`;
     }).join("");
 
+  // Round header row
+  const roundsHeader = `<div class="modal-rounds-header">
+    <div class="rh-spacer"></div><div class="rh-team"></div>
+    <div class="rh-rounds">${roundLabels.map(l => `<div class="rh-round">${l}</div>`).join("")}</div>
+    <div class="rh-pts">Pts</div>
+  </div>`;
+
+  // Build rank chart - show rank at each "snapshot" if we had stored data
+  // For now, show current rank + yesterday's rank as a simple 2-point chart
+  // We can expand this as more nightly snapshots accumulate
+  const stored = STORED_LEADERBOARD[entry.name];
+  const chartHtml = buildRankChart(entry, stored);
+
   content.innerHTML = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <div class="modal-header">
@@ -1375,7 +1494,9 @@ function showModal(name) {
       </div>
       <div class="modal-score">${entry.total} pts</div>
     </div>
+    ${roundsHeader}
     <div>${picksHtml}</div>
+    ${chartHtml}
     <div class="modal-max-possible">
       Max Possible: <strong>${entry.maxPossible} pts</strong>
     </div>
