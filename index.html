@@ -596,7 +596,6 @@ body {
       <span><span class="stat-value" id="currentRound">--</span></span>
       <span><span class="stat-value" id="teamsAlive">--</span> Teams Alive</span>
       <span id="liveIndicator" style="display:none"><span class="live-dot"></span><span class="stat-value" id="liveGameCount">0</span> Live</span>
-      <span>Refresh in <span class="stat-value" id="countdown">30</span>s</span>
     </div>
   </div>
   <div class="scoreboard-lights" id="lightsBottom"></div>
@@ -1592,7 +1591,6 @@ function startRefreshCycle() {
     countdown--;
     if (countdown < 0) countdown = 0;
     const pct = ((REFRESH_INTERVAL - countdown) / REFRESH_INTERVAL * 100) + "%";
-    document.getElementById("countdown").textContent = countdown;
     document.getElementById("refreshBarFill").style.width = pct;
     document.getElementById("trSeconds").textContent = countdown;
     const liveCount = liveGames.filter(g => g.status === "in").length;
