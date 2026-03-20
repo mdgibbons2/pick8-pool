@@ -386,7 +386,34 @@ body {
 }
 .modal-max-possible strong { color: var(--gold); }
 
-/* Refresh bar */
+/* Top refresh strip */
+.top-refresh {
+  position: sticky; top: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; height: 22px;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+  font-size: 0.65rem; color: var(--muted);
+  letter-spacing: 0.5px;
+}
+.top-refresh .tr-bar {
+  width: 80px; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.08); overflow: hidden;
+}
+.top-refresh .tr-bar-fill {
+  height: 100%; background: var(--orange);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+.top-refresh .tr-seconds {
+  color: var(--orange); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 18px; text-align: right;
+}
+.top-refresh .tr-live {
+  color: var(--red); font-weight: 700;
+}
+
+/* Refresh bar (below header) */
 .refresh-bar {
   height: 3px; background: rgba(255,255,255,0.05);
   position: relative;
@@ -415,6 +442,14 @@ body {
 </style>
 </head>
 <body>
+
+<!-- Top Refresh Strip -->
+<div class="top-refresh" id="topRefresh">
+  <span>NEXT REFRESH</span>
+  <span class="tr-seconds" id="trSeconds">30</span><span>s</span>
+  <div class="tr-bar"><div class="tr-bar-fill" id="trBarFill"></div></div>
+  <span class="tr-live" id="trLive" style="display:none">LIVE</span>
+</div>
 
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -1278,9 +1313,13 @@ function startRefreshCycle() {
   setInterval(() => {
     countdown--;
     if (countdown < 0) countdown = 0;
+    const pct = ((REFRESH_INTERVAL - countdown) / REFRESH_INTERVAL * 100) + "%";
     document.getElementById("countdown").textContent = countdown;
-    document.getElementById("refreshBarFill").style.width =
-      ((REFRESH_INTERVAL - countdown) / REFRESH_INTERVAL * 100) + "%";
+    document.getElementById("refreshBarFill").style.width = pct;
+    document.getElementById("trSeconds").textContent = countdown;
+    document.getElementById("trBarFill").style.width = pct;
+    const liveCount = liveGames.filter(g => g.status === "in").length;
+    document.getElementById("trLive").style.display = liveCount > 0 ? "" : "none";
 
     if (countdown <= 0) {
       countdown = REFRESH_INTERVAL;
