@@ -110,8 +110,8 @@ body {
 .ticker-row.final .ticker-label { color: var(--green); background: rgba(46,204,113,0.1); }
 .ticker-row.upcoming .ticker-label { color: var(--blue); background: rgba(58,134,196,0.1); }
 .ticker-overflow { overflow: hidden; flex-grow: 1; }
-.ticker-track { display: flex; animation: scroll-left 15s linear infinite; }
-.ticker-row.upcoming .ticker-track { animation-duration: 25s; }
+.ticker-track { display: flex; }
+.ticker-spacer { flex-shrink: 0; width: 60px; }
 .ticker-game {
   flex-shrink: 0; padding: 4px 20px;
   font-size: 0.8rem; color: var(--muted);
@@ -1203,15 +1203,21 @@ function renderTickerRow(rowId, trackId, games, badgeFn) {
   // Render single copy to measure, then decide if scrolling is needed
   track.innerHTML = singleHtml;
   track.style.animation = "none";
+  track.style.justifyContent = "";
 
-  // Check if content overflows the container
+  // Force layout to measure
   const trackWidth = track.scrollWidth;
   const containerWidth = overflow.clientWidth;
 
   if (trackWidth > containerWidth) {
-    // Duplicate for seamless scroll loop
-    track.innerHTML = singleHtml + singleHtml;
-    track.style.animation = "";
+    // Add spacer between copies, then duplicate for seamless loop
+    const spacer = '<div class="ticker-spacer"></div>';
+    track.innerHTML = singleHtml + spacer + singleHtml + spacer;
+    // Calculate scroll distance = one copy + one spacer
+    const halfWidth = trackWidth + 60; // 60px = spacer width
+    const speed = 80; // pixels per second
+    const duration = halfWidth / speed;
+    track.style.animation = `scroll-left ${duration}s linear infinite`;
     track.style.justifyContent = "";
   } else {
     // Fits - keep static, center the content
