@@ -132,17 +132,29 @@ body {
   padding: 12px 24px;
   background: rgba(0,0,0,0.2);
   position: relative;
+  display: flex; justify-content: center;
 }
-.search-bar input {
-  width: 100%; max-width: 400px; padding: 10px 16px;
+.search-wrapper {
+  position: relative; width: 100%; max-width: 400px;
+}
+.search-wrapper input {
+  width: 100%; padding: 10px 36px 10px 16px;
   background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px; color: var(--white); font-size: 0.9rem;
   outline: none;
 }
-.search-bar input:focus { border-color: var(--orange); }
-.search-bar input::placeholder { color: var(--muted); }
+.search-wrapper input:focus { border-color: var(--orange); }
+.search-wrapper input::placeholder { color: var(--muted); }
+.search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--muted);
+  font-size: 1.1rem; cursor: pointer; padding: 4px;
+  display: none; line-height: 1;
+}
+.search-clear:hover { color: var(--white); }
+.search-wrapper.has-text .search-clear { display: block; }
 .search-results {
-  position: absolute; top: 100%; left: 24px; right: 24px;
+  position: absolute; top: 100%; left: 0; right: 0;
   max-width: 500px; max-height: 400px; overflow-y: auto;
   background: var(--bg-card); border: 1px solid var(--orange);
   border-radius: 0 0 10px 10px;
@@ -520,8 +532,11 @@ body {
 
 <!-- Search -->
 <div class="search-bar">
-  <input type="text" id="searchInput" placeholder="Find your entries... type a name">
-  <div class="search-results" id="searchResults"></div>
+  <div class="search-wrapper" id="searchWrapper">
+    <input type="text" id="searchInput" placeholder="Find your entries... type a name">
+    <button class="search-clear" id="searchClear" title="Clear search">&times;</button>
+    <div class="search-results" id="searchResults"></div>
+  </div>
 </div>
 
 <!-- Main Content -->
@@ -1332,9 +1347,12 @@ document.addEventListener("keydown", function(e) {
 // ============================================================
 //  SEARCH
 // ============================================================
-document.getElementById("searchInput").addEventListener("input", function(e) {
-  searchTerm = e.target.value.trim();
+function updateSearch() {
+  searchTerm = document.getElementById("searchInput").value.trim();
   const resultsDiv = document.getElementById("searchResults");
+  const wrapper = document.getElementById("searchWrapper");
+
+  wrapper.classList.toggle("has-text", searchTerm.length > 0);
 
   if (!searchTerm) {
     resultsDiv.classList.remove("active");
@@ -1361,6 +1379,13 @@ document.getElementById("searchInput").addEventListener("input", function(e) {
     </div>
   `).join("");
   resultsDiv.classList.add("active");
+}
+
+document.getElementById("searchInput").addEventListener("input", updateSearch);
+
+document.getElementById("searchClear").addEventListener("click", function() {
+  document.getElementById("searchInput").value = "";
+  updateSearch();
 });
 
 // Close search results when clicking outside
