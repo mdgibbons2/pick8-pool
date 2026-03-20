@@ -1181,6 +1181,7 @@ function renderTicker() {
 function renderTickerRow(rowId, trackId, games, badgeFn) {
   const row = document.getElementById(rowId);
   const track = document.getElementById(trackId);
+  const overflow = track.parentElement;
 
   if (games.length === 0) {
     row.style.display = "none";
@@ -1188,18 +1189,35 @@ function renderTickerRow(rowId, trackId, games, badgeFn) {
   }
 
   row.style.display = "flex";
-  let html = "";
-  // Duplicate for seamless scroll loop
-  for (let dup = 0; dup < 2; dup++) {
-    for (const game of games) {
-      html += `<div class="ticker-game">
-        <span class="seed">(${game.team1Seed})</span> ${game.team1} <span class="score">${game.team1Score}</span>
-        - <span class="score">${game.team2Score}</span> ${game.team2} <span class="seed">(${game.team2Seed})</span>
-        ${badgeFn(game)}
-      </div>`;
-    }
+
+  // Build single copy of game items first
+  let singleHtml = "";
+  for (const game of games) {
+    singleHtml += `<div class="ticker-game">
+      <span class="seed">(${game.team1Seed})</span> ${game.team1} <span class="score">${game.team1Score}</span>
+      - <span class="score">${game.team2Score}</span> ${game.team2} <span class="seed">(${game.team2Seed})</span>
+      ${badgeFn(game)}
+    </div>`;
   }
-  track.innerHTML = html;
+
+  // Render single copy to measure, then decide if scrolling is needed
+  track.innerHTML = singleHtml;
+  track.style.animation = "none";
+
+  // Check if content overflows the container
+  const trackWidth = track.scrollWidth;
+  const containerWidth = overflow.clientWidth;
+
+  if (trackWidth > containerWidth) {
+    // Duplicate for seamless scroll loop
+    track.innerHTML = singleHtml + singleHtml;
+    track.style.animation = "";
+    track.style.justifyContent = "";
+  } else {
+    // Fits - keep static, center the content
+    track.style.animation = "none";
+    track.style.justifyContent = "center";
+  }
 }
 
 function renderTeamStatus() {
