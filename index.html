@@ -250,13 +250,17 @@ body {
 .player-card.highlighted {
   box-shadow: 0 0 0 2px var(--orange), 0 0 12px rgba(238,103,48,0.3);
 }
-.player-card.moving-up { border-left-color: var(--green); }
-.player-card.moving-down { border-left-color: var(--red); }
-.player-card.big-mover { animation: glow-pulse 0.8s ease-out; }
-@keyframes glow-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(238,103,48,0.6); }
-  70% { box-shadow: 0 0 15px 5px rgba(238,103,48,0.2); }
-  100% { box-shadow: 0 0 0 0 rgba(238,103,48,0); }
+.player-card.flash-up { animation: flash-green 2.5s ease-out forwards; }
+.player-card.flash-down { animation: flash-red 2.5s ease-out forwards; }
+@keyframes flash-green {
+  0% { background: var(--bg-card); }
+  15% { background: rgba(46, 204, 113, 0.25); }
+  100% { background: var(--bg-card); }
+}
+@keyframes flash-red {
+  0% { background: var(--bg-card); }
+  15% { background: rgba(231, 76, 60, 0.25); }
+  100% { background: var(--bg-card); }
 }
 .rank-badge {
   min-width: 40px; text-align: center;
@@ -1073,7 +1077,6 @@ function renderRaceTrack() {
 
     for (const entry of entries) {
       const showMov = Math.abs(entry.movement) > MOVEMENT_THRESHOLD;
-      const movClass = showMov ? (entry.movement > 0 ? "moving-up" : "moving-down") : "";
       const movIcon = showMov ? (entry.movement > 0 ? "\u25B2" : "\u25BC") : "\u2014";
       const movText = showMov ? Math.abs(entry.movement) : "";
       const movColor = showMov ? (entry.movement > 0 ? "up" : "down") : "same";
@@ -1097,7 +1100,7 @@ function renderRaceTrack() {
         return '<span class="alive"></span>';
       }).join("");
 
-      html += `<div class="player-card ${movClass} ${rankClass} ${dimmed} ${highlighted}"
+      html += `<div class="player-card ${rankClass} ${dimmed} ${highlighted}"
         data-name="${entry.name}" onclick="showModal('${entry.name.replace(/'/g, "\\'")}')">
         <div class="rank-badge">${entry.rank}</div>
         <div class="movement ${movColor}">${movIcon}${movText}</div>
@@ -1135,6 +1138,7 @@ function renderRaceTrack() {
       const deltaY = first.top - last.top;
       if (Math.abs(deltaY) < 2) return;
 
+      const flashClass = entry.movement > 0 ? "flash-up" : "flash-down";
       card.style.transform = `translateY(${deltaY}px)`;
       card.style.transition = "none";
       // Double rAF ensures the browser has applied the initial transform
@@ -1142,10 +1146,13 @@ function renderRaceTrack() {
         requestAnimationFrame(() => {
           card.style.transition = "transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
           card.style.transform = "";
-          if (Math.abs(deltaY) > 150) card.classList.add("big-mover");
         });
       });
-      setTimeout(() => card.classList.remove("big-mover"), 1500);
+      // Flash background after slide completes
+      setTimeout(() => {
+        card.classList.add(flashClass);
+        setTimeout(() => card.classList.remove(flashClass), 2500);
+      }, 800);
     });
   }
 }
