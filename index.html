@@ -1536,6 +1536,10 @@ function updateSearch() {
   if (!searchTerm) {
     resultsDiv.classList.remove("active");
     resultsDiv.innerHTML = "";
+    // Remove dimmed/highlighted from all cards
+    document.querySelectorAll(".player-card").forEach(card => {
+      card.classList.remove("dimmed", "highlighted");
+    });
     return;
   }
 
