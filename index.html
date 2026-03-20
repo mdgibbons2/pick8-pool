@@ -821,6 +821,24 @@ const PAYOUTS = {
   11: 76, 12: 63, 13: 63, 14: 51, 15: 51
 };
 
+// Bracket structure: teams listed in bracket position order per region
+// Consecutive pairs are Round 1 matchups (1v16, 8v9, 5v12, 4v13, 6v11, 3v14, 7v10, 2v15)
+const BRACKET_REGIONS = [
+  // East
+  ["Duke","Siena","Ohio St","TCU","St. Johns","Northern Iowa","Kansas","Cal Baptist",
+   "Louisville","South Florida","Michigan St","North Dakota St","UCLA","UCF","UCONN","Furman"],
+  // South
+  ["Florida","PVAM / Lehigh","Clemson","Iowa","Vanderbilt","McNeese St","Nebraska","Troy",
+   "North Carolina","VCU","Illinois","Penn","St. Marys","Texas AM","Houston","Idaho"],
+  // West
+  ["Arizona","LIU","Villinova","Utah St","Wisconsin","High Point","Arkansas","Hawaii",
+   "BYU","Texas","Gonzaga","Kenessaw St","Miami","Missouri","Purdue","Queens"],
+  // Midwest
+  ["Michigan","UMBC/Howard","UGA","St. Louis","Texas Tech","Akron","Alabama","Hofstra",
+   "Tennessee","Miami OH","Virginia","Wright St","Kentucky","Santa Clara","Iowa St.","Tennessee St"]
+];
+// Final Four: East vs South, West vs Midwest
+
 const REFRESH_INTERVAL = 30; // seconds
 const LIVE_LEAD_THRESHOLD = 10; // team must lead by this many points to earn provisional score
 const MOVEMENT_THRESHOLD = 5;  // only show movement arrows if rank changed by more than this
@@ -1108,6 +1126,196 @@ function calculateAllScores() {
     } else {
       leaderboard[i].movement = 0;
     }
+  }
+}
+
+// ============================================================
+//  WINNING PATH SIMULATION
+// ============================================================
+function calculateWinningPath(playerName) {
+  const entry = ENTRIES.find(e => e.name === playerName);
+  if (!entry) return null;
+
+  const myPicks = new Set(entry.picks);
+  const simWins = {}; // additional simulated wins: team -> [rounds]
+
+  function resolveGame(t1, t2, round) {
+    const s1 = teamState[t1] || {};
+    const s2 = teamState[t2] || {};
+
+    // If game already played (a team has this round in their wins)
+    if (s1.wins && s1.wins.includes(round)) return t1;
+    if (s2.wins && s2.wins.includes(round)) return t2;
+    // Check sim wins from earlier rounds in this simulation
+    if (simWins[t1] && simWins[t1].includes(round)) return t1;
+    if (simWins[t2] && simWins[t2].includes(round)) return t2;
+
+    const t1alive = !s1.eliminated;
+    const t2alive = !s2.eliminated;
+
+    // If one is eliminated, other advances
+    if (!t1alive && t2alive) { recordWin(t2, round); return t2; }
+    if (t1alive && !t2alive) { recordWin(t1, round); return t1; }
+    if (!t1alive && !t2alive) { return t1; } // both out
+
+    // Both alive - optimize for my picks
+    const t1mine = myPicks.has(t1);
+    const t2mine = myPicks.has(t2);
+
+    if (t1mine && !t2mine) { recordWin(t1, round); return t1; }
+    if (!t1mine && t2mine) { recordWin(t2, round); return t2; }
+    if (t1mine && t2mine) {
+      // Both mine - pick higher seed number (more points per round)
+      const winner = TEAM_SEEDS[t1] >= TEAM_SEEDS[t2] ? t1 : t2;
+      recordWin(winner, round);
+      return winner;
+    }
+    // Neither mine - advance lower seed (favorite), least help to others
+    const winner = TEAM_SEEDS[t1] <= TEAM_SEEDS[t2] ? t1 : t2;
+    recordWin(winner, round);
+    return winner;
+  }
+
+  function recordWin(team, round) {
+    if (!simWins[team]) simWins[team] = [];
+    if (!simWins[team].includes(round)) simWins[team].push(round);
+  }
+
+  // Simulate each region through rounds 1-4
+  const regionWinners = [];
+  for (const region of BRACKET_REGIONS) {
+    let bracket = region.slice();
+    let round = 1;
+    while (bracket.length > 1) {
+      const next = [];
+      for (let i = 0; i < bracket.length; i += 2) {
+        next.push(resolveGame(bracket[i], bracket[i + 1], round));
+      }
+      bracket = next;
+      round++;
+    }
+    regionWinners.push(bracket[0]);
+  }
+
+  // Final Four (round 5): East vs South, West vs Midwest
+  const semi1 = resolveGame(regionWinners[0], regionWinners[1], 5);
+  const semi2 = resolveGame(regionWinners[2], regionWinners[3], 5);
+
+  // Championship (round 6)
+  const champion = resolveGame(semi1, semi2, 6);
+
+  // Calculate scores for ALL players under this scenario
+  const allScores = ENTRIES.map(e => {
+    let score = 0;
+    for (const teamName of e.picks) {
+      const seed = TEAM_SEEDS[teamName];
+      if (!seed) continue;
+      // Actual wins
+      const state = teamState[teamName];
+      if (state) {
+        for (const r of state.wins) score += seed * r;
+      }
+      // Simulated future wins
+      if (simWins[teamName]) {
+        for (const r of simWins[teamName]) score += seed * r;
+      }
+    }
+    return { name: e.name, score };
+  });
+
+  allScores.sort((a, b) => b.score - a.score);
+
+  // Assign ranks with ties
+  let rank = 1;
+  for (let i = 0; i < allScores.length; i++) {
+    if (i > 0 && allScores[i].score === allScores[i - 1].score) {
+      allScores[i].rank = allScores[i - 1].rank;
+    } else {
+      allScores[i].rank = rank;
+    }
+    rank++;
+  }
+
+  const myResult = allScores.find(e => e.name === playerName);
+
+  // Build the winning path details for my picks
+  const pathDetails = entry.picks.map(teamName => {
+    const seed = TEAM_SEEDS[teamName] || 0;
+    const actualWins = (teamState[teamName] && teamState[teamName].wins) || [];
+    const futureWins = (simWins[teamName] || []).filter(r => !actualWins.includes(r));
+    const allWins = [...actualWins, ...futureWins].sort((a, b) => a - b);
+    const totalPts = allWins.reduce((sum, r) => sum + seed * r, 0);
+    const eliminated = teamState[teamName] && teamState[teamName].eliminated;
+    return { team: teamName, seed, actualWins, futureWins, allWins, totalPts, eliminated };
+  }).sort((a, b) => b.totalPts - a.totalPts);
+
+  return {
+    bestScore: myResult.score,
+    bestRank: myResult.rank,
+    champion,
+    pathDetails,
+    payout: PAYOUTS[myResult.rank] || null
+  };
+}
+
+function showWinningPath(playerName) {
+  const result = calculateWinningPath(playerName);
+  if (!result) return;
+
+  const pathHtml = result.pathDetails.map(p => {
+    const elimClass = p.eliminated ? "elim" : "";
+    let pills = "";
+    for (let r = 1; r <= 6; r++) {
+      if (p.actualWins.includes(r)) {
+        pills += `<span class="round-pill win">W</span>`;
+      } else if (p.futureWins.includes(r)) {
+        pills += `<span class="round-pill" style="background:#1a6b3a;color:#7dffb3;">W</span>`;
+      } else if (p.eliminated) {
+        const lostR = p.actualWins.length > 0 ? Math.max(...p.actualWins) + 1 : 1;
+        if (r === lostR) pills += `<span class="round-pill loss">L</span>`;
+        else if (r > lostR) pills += `<span class="round-pill out">\u2716</span>`;
+        else pills += `<span class="round-pill pending">-</span>`;
+      } else {
+        pills += `<span class="round-pill pending">-</span>`;
+      }
+    }
+    return `<div class="modal-pick ${elimClass}">
+      <div class="pick-seed">${p.seed}</div>
+      <div class="pick-team">${p.team}</div>
+      <div class="pick-rounds">${pills}</div>
+      <div class="pick-pts">${p.totalPts > 0 ? p.totalPts : ""}</div>
+    </div>`;
+  }).join("");
+
+  const payoutStr = result.payout ? ` - wins <strong style="color:var(--green)">$${result.payout}</strong>` : "";
+  const roundLabels = ["64","32","16","8","4","2"];
+  const roundsHeader = `<div class="modal-rounds-header">
+    <div class="rh-spacer"></div><div class="rh-team"></div>
+    <div class="rh-rounds">${roundLabels.map(l => `<div class="rh-round">${l}</div>`).join("")}</div>
+    <div class="rh-pts">Pts</div>
+  </div>`;
+
+  const content = document.getElementById("modalContent");
+  // Replace the bottom section with winning path results
+  const existing = content.querySelector(".winning-path-results");
+  const html = `<div class="winning-path-results" style="margin-top:16px;">
+    <div style="background:rgba(255,215,0,0.1);border-radius:8px;padding:12px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Best Case Finish</div>
+      <div style="font-size:2rem;font-weight:900;color:var(--gold);">#${result.bestRank} <span style="font-size:1rem;color:var(--white)">of 338</span></div>
+      <div style="font-size:1.1rem;font-weight:800;color:var(--orange);">${result.bestScore} pts${payoutStr}</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">Champion: ${result.champion}</div>
+    </div>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;">
+      Optimal Path <span style="font-size:0.7rem;">(dark green = projected wins, assumes favorites win other games)</span>
+    </div>
+    ${roundsHeader}
+    ${pathHtml}
+  </div>`;
+
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    content.querySelector(".modal-max-possible").insertAdjacentHTML("afterend", html);
   }
 }
 
@@ -1512,6 +1720,11 @@ function showModal(name) {
     <div class="modal-max-possible">
       Max Possible: <strong>${entry.maxPossible} pts</strong>
     </div>
+    <button onclick="showWinningPath('${entry.name.replace(/'/g, "\\'")}')" style="
+      width:100%;margin-top:12px;padding:10px;border:none;border-radius:8px;
+      background:linear-gradient(135deg,var(--orange),#cc5520);color:#fff;
+      font-weight:800;font-size:0.85rem;cursor:pointer;letter-spacing:0.5px;
+    ">Calculate Best Case Scenario</button>
   `;
 
   modal.classList.add("active");
