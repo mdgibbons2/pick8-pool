@@ -754,9 +754,11 @@ const LIVE_LEAD_THRESHOLD = 10; // team must lead by this many points to earn pr
 let teamState = {};
 let leaderboard = [];
 let previousRanks = {};
+let previousScores = {};
 let liveGames = [];
 let countdown = REFRESH_INTERVAL;
 let searchTerm = "";
+let isFirstRender = true;
 
 // ============================================================
 //  INITIALIZATION
@@ -783,14 +785,25 @@ async function initialize() {
     }
   }
 
-  // Fetch today's live games
+  // Calculate baseline scores from completed results only (no live games yet)
+  updateLoadingText("Calculating baseline scores...");
+  calculateAllScores();
+  // Save baseline ranks and scores - these are the "before live games" state
+  for (const entry of leaderboard) {
+    previousRanks[entry.name] = entry.rank;
+    previousScores[entry.name] = entry.total;
+  }
+
+  // Now fetch today's live games
   updateLoadingText("Checking for live games...");
   await fetchLiveGames();
 
-  // Calculate and render
+  // Recalculate with live data - movement will show vs baseline
   updateLoadingText("Calculating scores...");
   calculateAllScores();
+  isFirstRender = true;
   renderAll();
+  isFirstRender = false;
 
   // Hide loading overlay
   setTimeout(() => {
@@ -982,11 +995,16 @@ function calculateScore(entry) {
 }
 
 function calculateAllScores() {
-  // Save previous ranks
-  previousRanks = {};
+  // Save previous ranks before recalculating
+  const savedRanks = {};
+  const savedScores = {};
   for (const entry of leaderboard) {
-    previousRanks[entry.name] = entry.rank;
+    savedRanks[entry.name] = entry.rank;
+    savedScores[entry.name] = entry.total;
   }
+  // Use previousRanks/previousScores if leaderboard was empty (first calc after baseline)
+  const rankRef = Object.keys(savedRanks).length > 0 ? savedRanks : previousRanks;
+  const scoreRef = Object.keys(savedScores).length > 0 ? savedScores : previousScores;
 
   leaderboard = ENTRIES.map(entry => {
     const score = calculateScore(entry);
@@ -1007,9 +1025,11 @@ function calculateAllScores() {
     }
     rank++;
 
-    // Movement
-    const prev = previousRanks[leaderboard[i].name];
-    leaderboard[i].movement = prev ? prev - leaderboard[i].rank : 0;
+    // Movement - only show if this entry's score actually changed
+    const prevRank = rankRef[leaderboard[i].name];
+    const prevScore = scoreRef[leaderboard[i].name];
+    const scoreChanged = prevScore !== undefined && prevScore !== leaderboard[i].total;
+    leaderboard[i].movement = (prevRank && scoreChanged) ? prevRank - leaderboard[i].rank : 0;
   }
 }
 
@@ -1034,15 +1054,15 @@ function renderAll() {
 function renderRaceTrack() {
   const track = document.getElementById("raceTrack");
   const firstPositions = new Map();
+  const isRerender = !isFirstRender && track.children.length > 0;
 
-  // FLIP: capture current positions
-  const existingCards = track.querySelectorAll(".player-card");
-  existingCards.forEach(card => {
-    const rect = card.getBoundingClientRect();
-    firstPositions.set(card.dataset.name, { top: rect.top, left: rect.left });
-  });
-
-  const isRerender = existingCards.length > 0;
+  // FLIP: capture current positions of all cards before DOM change
+  if (isRerender) {
+    track.querySelectorAll(".player-card").forEach(card => {
+      const rect = card.getBoundingClientRect();
+      firstPositions.set(card.dataset.name, { top: rect.top, left: rect.left });
+    });
+  }
 
   let html = "";
   for (const group of GROUPS) {
@@ -1106,22 +1126,29 @@ function renderRaceTrack() {
 
   track.innerHTML = html;
 
-  // FLIP: animate if this is a rerender
+  // FLIP: animate movers on rerender
   if (isRerender) {
+    // Force layout so getBoundingClientRect returns final positions
+    track.offsetHeight;
     const newCards = track.querySelectorAll(".player-card");
     newCards.forEach(card => {
       const name = card.dataset.name;
       const first = firstPositions.get(name);
       if (!first) return;
+      // Only animate cards that actually moved (have a movement indicator)
+      const entry = leaderboard.find(e => e.name === name);
+      if (!entry || entry.movement === 0) return;
+
       const last = card.getBoundingClientRect();
       const deltaY = first.top - last.top;
       if (Math.abs(deltaY) < 2) return;
 
       card.style.transform = `translateY(${deltaY}px)`;
       card.style.transition = "none";
+      // Double rAF ensures the browser has applied the initial transform
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          card.style.transition = "transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+          card.style.transition = "transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)";
           card.style.transform = "";
           if (Math.abs(deltaY) > 150) card.classList.add("big-mover");
         });
@@ -1376,6 +1403,16 @@ async function refreshScores() {
   await fetchLiveGames();
   calculateAllScores();
   renderAll();
+  // Clear movement after rendering so arrows only show for one refresh cycle
+  setTimeout(() => {
+    for (const entry of leaderboard) {
+      entry.movement = 0;
+    }
+    // Re-render without movement indicators (no FLIP needed)
+    isFirstRender = true;
+    renderRaceTrack();
+    isFirstRender = false;
+  }, 3000); // Show movement arrows for 3 seconds then clear
 }
 
 // ============================================================
