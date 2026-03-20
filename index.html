@@ -732,6 +732,7 @@ const PAYOUTS = {
 };
 
 const REFRESH_INTERVAL = 30; // seconds
+const LIVE_LEAD_THRESHOLD = 10; // team must lead by this many points to earn provisional score
 
 // ============================================================
 //  STATE
@@ -863,18 +864,12 @@ async function fetchLiveGames() {
       liveGames.push(gameInfo);
 
       if (statusState === "in") {
-        // Live game
-        if (t1score > t2score) {
-          if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: true, score: t1score, oppScore: t2score };
-          if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: false, score: t2score, oppScore: t1score };
-        } else if (t2score > t1score) {
-          if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: true, score: t2score, oppScore: t1score };
-          if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: false, score: t1score, oppScore: t2score };
-        } else {
-          // Tied
-          if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: false, tied: true };
-          if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: false, tied: true };
-        }
+        // Live game - team must lead by LIVE_LEAD_THRESHOLD to earn provisional points
+        const margin = Math.abs(t1score - t2score);
+        const t1winning = t1score > t2score && margin >= LIVE_LEAD_THRESHOLD;
+        const t2winning = t2score > t1score && margin >= LIVE_LEAD_THRESHOLD;
+        if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: t1winning, score: t1score, oppScore: t2score, margin };
+        if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: t2winning, score: t2score, oppScore: t1score, margin };
       } else if (statusState === "post" && gameInfo.completed) {
         // Completed today - check if already in COMPLETED_RESULTS
         const winner = competitors[0].winner ? t1name : t2name;
