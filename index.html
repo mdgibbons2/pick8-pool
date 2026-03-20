@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pick-8 Pool - 2026 NCAA Tournament Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@700&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg-dark: #0f1123;
@@ -69,7 +72,9 @@ body {
   text-align: center;
 }
 .header h1 {
-  font-size: 2.2rem; font-weight: 900; letter-spacing: 2px;
+  font-family: 'Teko', sans-serif;
+  font-size: 3.8rem; font-weight: 700;
+  letter-spacing: -1px; line-height: 1;
   background: linear-gradient(135deg, var(--orange), var(--gold));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -467,7 +472,7 @@ body {
 @media (max-width: 900px) {
   .main-content { grid-template-columns: 1fr; }
   .sidebar { order: 2; }
-  .header h1 { font-size: 1.6rem; }
+  .header h1 { font-size: 2.6rem; }
   .stats-ribbon { gap: 12px; font-size: 0.75rem; }
 }
 @media (max-width: 600px) {
