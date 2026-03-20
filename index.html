@@ -738,8 +738,6 @@ const MOVEMENT_THRESHOLD = 5;  // only show movement arrows if rank changed by m
 // ============================================================
 let teamState = {};
 let leaderboard = [];
-let previousRanks = {};
-let previousScores = {};
 let liveGames = [];
 let countdown = REFRESH_INTERVAL;
 let searchTerm = "";
@@ -784,12 +782,6 @@ async function initialize() {
       teamState[team].wins = result.wins || [];
       teamState[team].eliminated = result.eliminated || false;
     }
-  }
-
-  // Seed previous ranks from the stored nightly leaderboard
-  for (const [name, data] of Object.entries(STORED_LEADERBOARD)) {
-    previousRanks[name] = data.rank;
-    previousScores[name] = data.score;
   }
 
   // Fetch today's live games
@@ -998,17 +990,6 @@ function calculateScore(entry) {
 }
 
 function calculateAllScores() {
-  // Save previous ranks before recalculating
-  const savedRanks = {};
-  const savedScores = {};
-  for (const entry of leaderboard) {
-    savedRanks[entry.name] = entry.rank;
-    savedScores[entry.name] = entry.total;
-  }
-  // Use previousRanks/previousScores if leaderboard was empty (first calc after baseline)
-  const rankRef = Object.keys(savedRanks).length > 0 ? savedRanks : previousRanks;
-  const scoreRef = Object.keys(savedScores).length > 0 ? savedScores : previousScores;
-
   leaderboard = ENTRIES.map(entry => {
     const score = calculateScore(entry);
     return { ...entry, ...score };
@@ -1028,11 +1009,13 @@ function calculateAllScores() {
     }
     rank++;
 
-    // Movement - only show if this entry's score actually changed
-    const prevRank = rankRef[leaderboard[i].name];
-    const prevScore = scoreRef[leaderboard[i].name];
-    const scoreChanged = prevScore !== undefined && prevScore !== leaderboard[i].total;
-    leaderboard[i].movement = (prevRank && scoreChanged) ? prevRank - leaderboard[i].rank : 0;
+    // Movement - always compare against yesterday's stored nightly baseline
+    const stored = STORED_LEADERBOARD[leaderboard[i].name];
+    if (stored && stored.score !== leaderboard[i].total) {
+      leaderboard[i].movement = stored.rank - leaderboard[i].rank;
+    } else {
+      leaderboard[i].movement = 0;
+    }
   }
 }
 
@@ -1042,7 +1025,7 @@ function calculateAllScores() {
 const GROUPS = [
   { id: "leaders", title: "The Leaders", icon: "\u{1F3C6}", range: [1, 10], color: "var(--gold)" },
   { id: "chase1", title: "Chase Group 1", icon: "\u{1F3C3}", range: [11, 50], color: "var(--silver)" },
-  { id: "chase2", title: "Chase Group 2", icon: "\u{1F6B4}", range: [51, 100], color: "var(--bronze)" },
+  { id: "chase2", title: "Chase Group 2", icon: "\u{1F6B6}", range: [51, 100], color: "var(--bronze)" },
   { id: "pack", title: "Behind the Pack", icon: "\u{1F634}", range: [101, 999], color: "var(--slate)", collapsed: true },
 ];
 
@@ -1454,16 +1437,6 @@ async function refreshScores() {
   await fetchLiveGames();
   calculateAllScores();
   renderAll();
-  // Clear movement after rendering so arrows only show for one refresh cycle
-  setTimeout(() => {
-    for (const entry of leaderboard) {
-      entry.movement = 0;
-    }
-    // Re-render without movement indicators (no FLIP needed)
-    isFirstRender = true;
-    renderRaceTrack();
-    isFirstRender = false;
-  }, 3000); // Show movement arrows for 3 seconds then clear
 }
 
 // ============================================================
