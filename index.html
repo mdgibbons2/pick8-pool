@@ -174,21 +174,30 @@ body {
 
 /* Search */
 .search-bar {
-  padding: 12px 24px;
+  padding: 16px 24px;
   background: rgba(0,0,0,0.2);
   position: relative;
   display: flex; justify-content: center;
 }
 .search-wrapper {
-  position: relative; width: 100%; max-width: 400px;
+  position: relative; width: 100%; max-width: 500px;
 }
 .search-wrapper input {
-  width: 100%; padding: 10px 36px 10px 16px;
-  background: var(--bg-card); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px; color: var(--white); font-size: 0.9rem;
+  width: 100%; padding: 12px 40px 12px 40px;
+  background: var(--bg-card); border: 2px solid rgba(255,215,0,0.3);
+  border-radius: 10px; color: var(--white); font-size: 0.95rem;
   outline: none;
+  box-shadow: 0 0 12px rgba(255,215,0,0.05);
 }
-.search-wrapper input:focus { border-color: var(--orange); }
+.search-wrapper::before {
+  content: "\1F50D"; position: absolute; left: 14px; top: 50%;
+  transform: translateY(-50%); font-size: 0.9rem; opacity: 0.5;
+  pointer-events: none;
+}
+.search-wrapper input:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 16px rgba(238,103,48,0.15);
+}
 .search-wrapper input::placeholder { color: var(--muted); }
 .search-clear {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
@@ -337,6 +346,14 @@ body {
 .score-provisional {
   font-size: 0.7rem; color: var(--orange);
   font-weight: 400;
+  cursor: help; position: relative;
+}
+.score-provisional:hover::after {
+  content: "Provisional pts - team leading a live game by 10+";
+  position: absolute; bottom: 100%; right: 0;
+  background: #222; color: var(--white); font-size: 0.65rem;
+  padding: 4px 8px; border-radius: 4px; white-space: nowrap;
+  z-index: 20; pointer-events: none;
 }
 .alive-bar {
   display: flex; gap: 2px; min-width: 56px;
@@ -1324,8 +1341,8 @@ function showWinningPath(playerName) {
 //  RENDERING
 // ============================================================
 const GROUPS = [
-  { id: "leaders", title: "The Leaders", icon: "\u{1F3C6}", range: [1, 10], color: "var(--gold)" },
-  { id: "chase1", title: "Chase Group 1", icon: "\u{1F3C3}", range: [11, 50], color: "var(--silver)" },
+  { id: "leaders", title: "The Leaders", icon: "\u{1F3C6}", range: [1, 15], color: "var(--gold)" },
+  { id: "chase1", title: "Chase Group 1", icon: "\u{1F3C3}", range: [16, 50], color: "var(--silver)" },
   { id: "chase2", title: "Chase Group 2", icon: "\u{1F6B6}", range: [51, 100], color: "var(--bronze)" },
   { id: "pack", title: "Behind the Pack", icon: "\u{1F634}", range: [101, 999], color: "var(--slate)", collapsed: true },
 ];
@@ -1375,13 +1392,10 @@ function renderRaceTrack() {
       const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : "";
       const dimmed = searchTerm && !entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ? "dimmed" : "";
       const highlighted = searchTerm && entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ? "highlighted" : "";
-      const payout = PAYOUTS[entry.rank] ? `<span class="payout-badge">$${PAYOUTS[entry.rank]}</span>` : "";
-
-      // Best performing teams
+      // Active teams (not eliminated)
       const topTeams = entry.pickDetails
-        .filter(p => p.pts > 0)
+        .filter(p => p.status !== "eliminated")
         .sort((a, b) => b.pts - a.pts)
-        .slice(0, 3)
         .map(p => p.team)
         .join(", ");
 
@@ -1404,7 +1418,6 @@ function renderRaceTrack() {
           ${entry.total}${entry.provisional > 0 ? `<div class="score-provisional">+${entry.provisional}</div>` : ""}
         </div>
         <div class="alive-bar">${aliveBar}</div>
-        ${payout}
       </div>`;
     }
 
