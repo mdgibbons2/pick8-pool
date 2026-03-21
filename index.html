@@ -1913,60 +1913,7 @@ async function saveNightlyUpdate() {
   }
 }
 
-// ============================================================
-//  NIGHTLY SAVE BUTTON (10 PM - 2 AM Pacific)
-// ============================================================
-function checkNightlySaveWindow() {
-  // Convert current time to Pacific
-  const now = new Date();
-  const pacific = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-  const hour = pacific.getHours();
-  // Show between 10 PM (22) and 2 AM (inclusive: 22, 23, 0, 1)
-  const inWindow = hour >= 22 || hour < 2;
 
-  let btn = document.getElementById("nightlySaveBtn");
-  if (inWindow && !btn) {
-    btn = document.createElement("div");
-    btn.id = "nightlySaveBtn";
-    btn.style.cssText = "text-align:center;padding:24px;";
-    btn.innerHTML = `
-      <button onclick="nightlySave()" style="
-        padding:14px 32px;border:none;border-radius:10px;
-        background:linear-gradient(135deg,var(--gold),#cc9900);color:#1a1a2e;
-        font-weight:800;font-size:1rem;cursor:pointer;letter-spacing:0.5px;
-        box-shadow:0 0 20px rgba(255,215,0,0.2);
-      ">Save Today's Results</button>
-      <div id="nightlySaveStatus" style="margin-top:8px;font-size:0.85rem;color:var(--muted);"></div>
-    `;
-    document.querySelector(".main-content").appendChild(btn);
-  } else if (!inWindow && btn) {
-    btn.remove();
-  }
-}
-
-async function nightlySave() {
-  const status = document.getElementById("nightlySaveStatus");
-  // Check for live games
-  const liveCount = liveGames.filter(g => g.status === "in").length;
-  if (liveCount > 0) {
-    status.style.color = "var(--red)";
-    status.textContent = `Cannot save - ${liveCount} game${liveCount > 1 ? "s" : ""} still in progress. Wait until all games are final.`;
-    return;
-  }
-  status.style.color = "var(--orange)";
-  status.textContent = "Saving...";
-  const success = await saveNightlyUpdate();
-  if (success) {
-    status.style.color = "var(--green)";
-    status.textContent = "Saved! Tomorrow's baseline is set.";
-  } else {
-    status.style.color = "var(--red)";
-    status.textContent = "Save failed. Try again.";
-  }
-}
-
-// Check every 60 seconds whether to show/hide the button
-setInterval(checkNightlySaveWindow, 60000);
 
 // ============================================================
 //  KICK IT OFF
@@ -1982,7 +1929,7 @@ window.addEventListener("DOMContentLoaded", function() {
       el.appendChild(b);
     }
   });
-  initialize().then(() => checkNightlySaveWindow());
+  initialize();
 });
 </script>
 
