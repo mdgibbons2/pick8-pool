@@ -1582,11 +1582,8 @@ function renderGameLog() {
 function updateStats() {
   const alive = Object.values(teamState).filter(t => !t.eliminated).length;
   const liveCount = liveGames.filter(g => g.status === "in").length;
-  const maxRound = Math.max(0, ...Object.values(teamState).flatMap(t => t.wins));
-  const currentRound = maxRound > 0 ? ROUND_NAMES[maxRound] || `Round ${maxRound}` : "Pre-Tournament";
 
   document.getElementById("teamsAlive").textContent = alive;
-  document.getElementById("currentRound").textContent = currentRound;
 
   const liveInd = document.getElementById("liveIndicator");
   if (liveCount > 0) {
