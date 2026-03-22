@@ -775,6 +775,7 @@ const JSONBIN_ID = "69bebf38b7ec241ddc8c8b66";
 const JSONBIN_KEY = "$2a$10$6JX6ofTJtikmxiWlTay2ueAXQfloPs2sYFkz3PjHoZ004FiZnoHAS";
 let COMPLETED_RESULTS = {};
 let STORED_LEADERBOARD = {}; // {name: {rank, score}} from last nightly update
+let RANK_HISTORY = []; // [{label, date, leaderboard: {name: {rank, score}}}]
 
 // ============================================================
 //  ESPN NAME MAP - Maps ESPN shortDisplayName to spreadsheet names
@@ -896,8 +897,10 @@ async function initialize() {
     const record = data.record || {};
     COMPLETED_RESULTS = record.completedResults || {};
     STORED_LEADERBOARD = record.previousLeaderboard || {};
+    RANK_HISTORY = record.rankHistory || [];
     console.log("Loaded from jsonbin:", Object.keys(COMPLETED_RESULTS).length, "team results,",
-      Object.keys(STORED_LEADERBOARD).length, "leaderboard entries. Updated:", record.lastUpdated);
+      Object.keys(STORED_LEADERBOARD).length, "leaderboard entries,",
+      RANK_HISTORY.length, "history days. Updated:", record.lastUpdated);
   } catch (e) {
     console.warn("Failed to fetch from jsonbin, using empty results:", e);
   }
@@ -1598,27 +1601,29 @@ function updateStats() {
 //  MODAL
 // ============================================================
 function buildRankChart(entry, stored) {
-  // Data points: yesterday's rank and current rank
-  // Labels map to tournament progression
+  // Build data points from rank history + current
   const points = [];
-  if (stored) {
-    points.push({ label: "Yesterday", rank: stored.rank, score: stored.score });
+  for (const day of RANK_HISTORY) {
+    const d = day.leaderboard[entry.name];
+    if (d) points.push({ label: day.label, rank: d.rank, score: d.score });
   }
+  // Add current live rank
   points.push({ label: "Now", rank: entry.rank, score: entry.total });
 
-  if (points.length < 2) {
-    return ""; // Need at least 2 points to draw a chart
-  }
+  if (points.length < 2) return "";
 
-  const svgW = 440, svgH = 90;
-  const padL = 55, padR = 20, padT = 20, padB = 22;
+  const svgW = 440, svgH = 110;
+  const padL = 40, padR = 20, padT = 22, padB = 24;
   const chartW = svgW - padL - padR;
   const chartH = svgH - padT - padB;
 
-  // Y scale: rank (1 = top, 338 = bottom). Invert so #1 is at top.
+  // Y scale: rank (1 = top). Add padding around range.
   const allRanks = points.map(p => p.rank);
-  const minRank = Math.max(1, Math.min(...allRanks) - 10);
-  const maxRank = Math.min(338, Math.max(...allRanks) + 10);
+  const bestRank = Math.min(...allRanks);
+  const worstRank = Math.max(...allRanks);
+  const rangePad = Math.max(5, Math.round((worstRank - bestRank) * 0.25));
+  const minRank = Math.max(1, bestRank - rangePad);
+  const maxRank = Math.min(338, worstRank + rangePad);
   const yScale = (rank) => padT + ((rank - minRank) / (maxRank - minRank)) * chartH;
   const xStep = chartW / (points.length - 1);
 
@@ -1626,35 +1631,49 @@ function buildRankChart(entry, stored) {
   const coords = points.map((p, i) => ({ x: padL + i * xStep, y: yScale(p.rank) }));
   const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x},${c.y}`).join(" ");
 
-  // Direction arrow/color
+  // Overall direction
   const rankDiff = points[0].rank - points[points.length - 1].rank;
   const lineColor = rankDiff > 0 ? "var(--green)" : rankDiff < 0 ? "var(--red)" : "var(--orange)";
   const direction = rankDiff > 0 ? `\u25B2${rankDiff} places` : rankDiff < 0 ? `\u25BC${Math.abs(rankDiff)} places` : "No change";
   const dirColor = rankDiff > 0 ? "var(--green)" : rankDiff < 0 ? "var(--red)" : "var(--muted)";
 
   // Grid lines
-  const gridCount = 3;
+  const gridSteps = [minRank, Math.round((minRank + maxRank) / 2), maxRank];
   let gridLines = "";
-  for (let i = 0; i <= gridCount; i++) {
-    const rank = Math.round(minRank + (i / gridCount) * (maxRank - minRank));
+  for (const rank of gridSteps) {
     const y = yScale(rank);
     gridLines += `<line x1="${padL}" y1="${y}" x2="${svgW - padR}" y2="${y}" class="chart-grid"/>`;
     gridLines += `<text x="${padL - 6}" y="${y + 3}" class="chart-label" text-anchor="end">#${rank}</text>`;
   }
 
-  // Points and labels
+  // Dots and labels
   let dotsHtml = "";
   coords.forEach((c, i) => {
-    dotsHtml += `<circle cx="${c.x}" cy="${c.y}" r="4" class="chart-dot" style="fill:${lineColor}"/>`;
-    dotsHtml += `<text x="${c.x}" y="${c.y - 8}" class="chart-value">#${points[i].rank}</text>`;
+    // Segment color (green if improved from prev, red if dropped)
+    let dotColor = lineColor;
+    if (i > 0) {
+      const diff = points[i - 1].rank - points[i].rank;
+      dotColor = diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--orange)";
+    }
+    dotsHtml += `<circle cx="${c.x}" cy="${c.y}" r="4" class="chart-dot" style="fill:${dotColor}"/>`;
+    dotsHtml += `<text x="${c.x}" y="${c.y - 9}" class="chart-value">#${points[i].rank}</text>`;
     dotsHtml += `<text x="${c.x}" y="${svgH - 4}" class="chart-label" text-anchor="middle">${points[i].label}</text>`;
   });
+
+  // Multi-segment path with colors per segment
+  let segments = "";
+  for (let i = 1; i < coords.length; i++) {
+    const diff = points[i - 1].rank - points[i].rank;
+    const segColor = diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--orange)";
+    segments += `<line x1="${coords[i-1].x}" y1="${coords[i-1].y}" x2="${coords[i].x}" y2="${coords[i].y}"
+      stroke="${segColor}" stroke-width="2" stroke-linecap="round"/>`;
+  }
 
   return `<div class="rank-chart">
     <div class="rank-chart-title">Rank Trend <span style="float:right;color:${dirColor};font-weight:700">${direction}</span></div>
     <svg viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="xMidYMid meet">
       ${gridLines}
-      <path d="${pathD}" class="chart-line" style="stroke:${lineColor}"/>
+      ${segments}
       ${dotsHtml}
     </svg>
   </div>`;
@@ -1851,7 +1870,7 @@ function showAdminPanel() {
   panel.innerHTML = `
     <div style="font-weight:800;color:var(--orange);margin-bottom:8px;">ADMIN PANEL</div>
     <div style="color:var(--muted);margin-bottom:12px;" id="adminStatus">
-      Stored data: ${Object.keys(COMPLETED_RESULTS).length} team results, ${Object.keys(STORED_LEADERBOARD).length} leaderboard entries
+      Stored data: ${Object.keys(COMPLETED_RESULTS).length} team results, ${Object.keys(STORED_LEADERBOARD).length} leaderboard entries, ${RANK_HISTORY.length} history days
     </div>
     <button onclick="saveNightlyUpdate()" style="background:var(--orange);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer;width:100%;">
       Save Nightly Update to JSONBin
@@ -1880,11 +1899,26 @@ async function saveNightlyUpdate() {
     currentLeaderboard[entry.name] = { rank: entry.rank, score: entry.confirmed };
   }
 
+  // Append today's snapshot to rank history
+  const today = new Date();
+  const dayLabel = "Day " + (RANK_HISTORY.length + 1);
+  const dateStr = today.toISOString().slice(0, 10);
+  const updatedHistory = [...RANK_HISTORY];
+  // Only add if we haven't already saved today
+  if (!updatedHistory.some(d => d.date === dateStr)) {
+    updatedHistory.push({ label: dayLabel, date: dateStr, leaderboard: currentLeaderboard });
+  } else {
+    // Update today's entry
+    const idx = updatedHistory.findIndex(d => d.date === dateStr);
+    updatedHistory[idx] = { label: updatedHistory[idx].label, date: dateStr, leaderboard: currentLeaderboard };
+  }
+
   const payload = {
     completedResults: updatedResults,
     previousLeaderboard: currentLeaderboard,
+    rankHistory: updatedHistory,
     lastUpdated: new Date().toISOString(),
-    updatedThrough: "Updated " + new Date().toLocaleDateString()
+    updatedThrough: "Updated " + today.toLocaleDateString()
   };
 
   try {
