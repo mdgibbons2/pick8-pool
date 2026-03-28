@@ -1141,7 +1141,7 @@ function calculateAllScores() {
 
     // Movement - always compare against yesterday's stored nightly baseline
     const stored = STORED_LEADERBOARD[leaderboard[i].name];
-    if (stored && stored.score !== leaderboard[i].total) {
+    if (stored && stored.rank !== leaderboard[i].rank) {
       leaderboard[i].movement = stored.rank - leaderboard[i].rank;
     } else {
       leaderboard[i].movement = 0;
@@ -1605,7 +1605,7 @@ function buildRankChart(entry, stored) {
   const points = [];
   for (const day of RANK_HISTORY) {
     const d = day.leaderboard[entry.name];
-    if (d) points.push({ label: day.label, rank: d.rank, score: d.score });
+    if (d) points.push({ label: day.label, rank: d.rank });
   }
   // Add current live rank
   points.push({ label: "Now", rank: entry.rank, score: entry.total });
@@ -1895,22 +1895,29 @@ async function saveNightlyUpdate() {
   }
 
   const currentLeaderboard = {};
+  const historyLeaderboard = {}; // rank only, no score (saves ~30KB)
   for (const entry of leaderboard) {
     currentLeaderboard[entry.name] = { rank: entry.rank, score: entry.confirmed };
+    historyLeaderboard[entry.name] = { rank: entry.rank };
   }
 
-  // Append today's snapshot to rank history
+  // Append today's snapshot to rank history (rank only to stay under 100KB)
   const today = new Date();
   const dayLabel = "Day " + (RANK_HISTORY.length + 1);
   const dateStr = today.toISOString().slice(0, 10);
   const updatedHistory = [...RANK_HISTORY];
+  // Strip scores from any older history entries that still have them
+  for (const day of updatedHistory) {
+    for (const name of Object.keys(day.leaderboard || {})) {
+      delete day.leaderboard[name].score;
+    }
+  }
   // Only add if we haven't already saved today
   if (!updatedHistory.some(d => d.date === dateStr)) {
-    updatedHistory.push({ label: dayLabel, date: dateStr, leaderboard: currentLeaderboard });
+    updatedHistory.push({ label: dayLabel, date: dateStr, leaderboard: historyLeaderboard });
   } else {
-    // Update today's entry
     const idx = updatedHistory.findIndex(d => d.date === dateStr);
-    updatedHistory[idx] = { label: updatedHistory[idx].label, date: dateStr, leaderboard: currentLeaderboard };
+    updatedHistory[idx] = { label: updatedHistory[idx].label, date: dateStr, leaderboard: historyLeaderboard };
   }
 
   const payload = {
