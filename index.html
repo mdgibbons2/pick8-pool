@@ -1508,7 +1508,9 @@ function renderRaceTrack() {
 
 function renderTicker() {
   const live = liveGames.filter(g => g.status === "in");
-  const final_ = liveGames.filter(g => g.status === "post");
+  const allFinal = liveGames.filter(g => g.status === "post");
+  const maxFinalRound = allFinal.length > 0 ? Math.max(...allFinal.map(g => g.round)) : 0;
+  const final_ = allFinal.filter(g => g.round === maxFinalRound);
   const upcoming = liveGames.filter(g => g.status === "pre");
 
   renderTickerRow("tickerLive", "tickerLiveTrack", live, g =>
