@@ -914,9 +914,9 @@ async function initialize() {
     }
   }
 
-  // Fetch today's live games
-  updateLoadingText("Checking for live games...");
-  await fetchLiveGames();
+  // Fetch ALL tournament dates to catch any results the jsonbin missed
+  updateLoadingText("Fetching tournament results...");
+  await fetchAllTournamentGames();
 
   // Calculate scores - movement will show vs stored nightly baseline
   updateLoadingText("Calculating scores...");
@@ -971,69 +971,111 @@ function getRoundNumber(event) {
   return 0;
 }
 
+// Process ESPN events and apply results to teamState
+function processEspnEvents(events) {
+  for (const event of events) {
+    const round = getRoundNumber(event);
+    if (round === 0) continue;
+
+    const comp = event.competitions[0];
+    const statusState = comp.status.type.state;
+    const competitors = comp.competitors;
+
+    const t1name = normalizeTeamName(competitors[0].team.shortDisplayName);
+    const t2name = normalizeTeamName(competitors[1].team.shortDisplayName);
+    const t1score = parseInt(competitors[0].score) || 0;
+    const t2score = parseInt(competitors[1].score) || 0;
+    const t1seed = competitors[0].curatedRank ? competitors[0].curatedRank.current : 0;
+    const t2seed = competitors[1].curatedRank ? competitors[1].curatedRank.current : 0;
+
+    const gameInfo = {
+      team1: t1name, team1Score: t1score, team1Seed: t1seed,
+      team2: t2name, team2Score: t2score, team2Seed: t2seed,
+      round, status: statusState,
+      statusText: comp.status.type.shortDetail || comp.status.type.description || "",
+      completed: comp.status.type.completed || false
+    };
+    liveGames.push(gameInfo);
+
+    if (statusState === "in") {
+      const margin = Math.abs(t1score - t2score);
+      const t1winning = t1score > t2score && margin >= LIVE_LEAD_THRESHOLD;
+      const t2winning = t2score > t1score && margin >= LIVE_LEAD_THRESHOLD;
+      if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: t1winning, score: t1score, oppScore: t2score, margin };
+      if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: t2winning, score: t2score, oppScore: t1score, margin };
+    } else if (statusState === "post" && gameInfo.completed) {
+      const winner = competitors[0].winner ? t1name : t2name;
+      const loser = competitors[0].winner ? t2name : t1name;
+      if (teamState[winner] && !teamState[winner].wins.includes(round)) {
+        teamState[winner].wins.push(round);
+      }
+      if (teamState[loser] && !teamState[loser].eliminated) {
+        teamState[loser].eliminated = true;
+      }
+    }
+  }
+}
+
+// Initial load: fetch ALL tournament dates to catch everything the jsonbin missed
+async function fetchAllTournamentGames() {
+  for (const team of Object.values(teamState)) {
+    team.liveGame = null;
+  }
+  liveGames = [];
+
+  // Determine which dates to fetch (today and earlier, skip future dates)
+  const today = new Date();
+  const todayStr = today.getFullYear().toString() +
+    String(today.getMonth() + 1).padStart(2, "0") +
+    String(today.getDate()).padStart(2, "0");
+  const datesToFetch = TOURNAMENT_DATES.filter(d => d <= todayStr);
+
+  try {
+    const fetches = datesToFetch.map(date =>
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${date}&groups=100`)
+        .then(r => r.json())
+        .catch(() => ({ events: [] }))
+    );
+    const results = await Promise.all(fetches);
+    for (const data of results) {
+      processEspnEvents(data.events || []);
+    }
+    console.log("Fetched", datesToFetch.length, "tournament dates,", liveGames.length, "total games");
+  } catch (e) {
+    console.warn("Failed to fetch tournament scores:", e);
+  }
+}
+
+// Refresh: fetch only today for live updates
 async function fetchLiveGames() {
   const today = new Date();
   const dateStr = today.getFullYear().toString() +
     String(today.getMonth() + 1).padStart(2, "0") +
     String(today.getDate()).padStart(2, "0");
 
-  // Clear live game state
+  // Clear live game state but keep completed wins
   for (const team of Object.values(teamState)) {
     team.liveGame = null;
   }
   liveGames = [];
 
   try {
-    const resp = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${dateStr}&groups=100`
+    // Fetch today and yesterday (in case games ran past midnight)
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.getFullYear().toString() +
+      String(yesterday.getMonth() + 1).padStart(2, "0") +
+      String(yesterday.getDate()).padStart(2, "0");
+
+    const dates = [...new Set([yesterdayStr, dateStr].filter(d => TOURNAMENT_DATES.includes(d)))];
+    const fetches = dates.map(d =>
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${d}&groups=100`)
+        .then(r => r.json())
+        .catch(() => ({ events: [] }))
     );
-    const data = await resp.json();
-
-    if (!data.events) return;
-
-    for (const event of data.events) {
-      const round = getRoundNumber(event);
-      if (round === 0) continue;
-
-      const comp = event.competitions[0];
-      const statusState = comp.status.type.state;
-      const competitors = comp.competitors;
-
-      const t1name = normalizeTeamName(competitors[0].team.shortDisplayName);
-      const t2name = normalizeTeamName(competitors[1].team.shortDisplayName);
-      const t1score = parseInt(competitors[0].score) || 0;
-      const t2score = parseInt(competitors[1].score) || 0;
-      const t1seed = competitors[0].curatedRank ? competitors[0].curatedRank.current : 0;
-      const t2seed = competitors[1].curatedRank ? competitors[1].curatedRank.current : 0;
-
-      const gameInfo = {
-        team1: t1name, team1Score: t1score, team1Seed: t1seed,
-        team2: t2name, team2Score: t2score, team2Seed: t2seed,
-        round, status: statusState,
-        statusText: comp.status.type.shortDetail || comp.status.type.description || "",
-        completed: comp.status.type.completed || false
-      };
-      liveGames.push(gameInfo);
-
-      if (statusState === "in") {
-        // Live game - team must lead by LIVE_LEAD_THRESHOLD to earn provisional points
-        const margin = Math.abs(t1score - t2score);
-        const t1winning = t1score > t2score && margin >= LIVE_LEAD_THRESHOLD;
-        const t2winning = t2score > t1score && margin >= LIVE_LEAD_THRESHOLD;
-        if (teamState[t1name]) teamState[t1name].liveGame = { round, winning: t1winning, score: t1score, oppScore: t2score, margin };
-        if (teamState[t2name]) teamState[t2name].liveGame = { round, winning: t2winning, score: t2score, oppScore: t1score, margin };
-      } else if (statusState === "post" && gameInfo.completed) {
-        // Completed today - check if already in COMPLETED_RESULTS
-        const winner = competitors[0].winner ? t1name : t2name;
-        const loser = competitors[0].winner ? t2name : t1name;
-        // Only apply if not already recorded
-        if (teamState[winner] && !teamState[winner].wins.includes(round)) {
-          teamState[winner].wins.push(round);
-        }
-        if (teamState[loser] && !teamState[loser].eliminated) {
-          teamState[loser].eliminated = true;
-        }
-      }
+    const results = await Promise.all(fetches);
+    for (const data of results) {
+      processEspnEvents(data.events || []);
     }
   } catch (e) {
     console.warn("Failed to fetch live scores:", e);
